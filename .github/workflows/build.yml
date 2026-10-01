@@ -1,0 +1,32 @@
+name: Build BATIR
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+      - name: Restore
+        run: nuget restore BATIR.sln
+      - name: Build
+        run: msbuild BATIR.sln /p:Configuration=Release /p:Platform="Any CPU"
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          Copy-Item -Recurse -Force src/BATIR/bin/Release/* release/
+          Compress-Archive -Path release/* -DestinationPath BATIR-Windows.zip -Force
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BATIR-Windows
+          path: BATIR-Windows.zip
