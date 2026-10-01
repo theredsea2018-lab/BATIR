@@ -25,7 +25,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release | Out-Null
-          Copy-Item -Recurse -Force src/BATIR/bin/Release/* release/
+          Copy-Item -Recurse -Force "src/BATIR/bin/Any CPU/Release/*" release/
           Compress-Archive -Path release/* -DestinationPath BATIR-Windows.zip -Force
 
       - name: Upload artifact
