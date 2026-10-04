@@ -21,6 +21,8 @@ public class MainForm : Form
     readonly TextBox customerName = new();
     readonly TextBox invoiceNote = new();
     readonly Label invoiceTotal = new();
+    readonly NumericUpDown invoicePaid = new() { Minimum = 0, Maximum = 999999999999 };
+    readonly ComboBox paymentMethod = new();
     readonly Label status = new();
     readonly DataTable invoiceItems = new();
 
@@ -86,19 +88,27 @@ public class MainForm : Form
         AddText(header, "مشتری", customerName, 1, 0);
         AddNum(header, "تعداد", invoiceQty, 2, 0);
         AddNum(header, "تخفیف", invoiceDiscount, 3, 0);
+        AddNum(header, "پرداختی", invoicePaid, 0, 1);
+        AddCombo(header, "روش پرداخت", paymentMethod, 1, 1);
         AddText(header, "توضیحات", invoiceNote, 0, 1);
 
         var add = new Button { Text = "افزودن به فاکتور", Dock = DockStyle.Fill };
         add.Click += AddInvoiceItem;
-        header.Controls.Add(add, 1, 1);
+        header.Controls.Add(add, 2, 1);
 
         var save = new Button { Text = "ثبت نهایی فاکتور (F9)", Dock = DockStyle.Fill };
         save.Click += (_, _) => SaveInvoice();
-        header.Controls.Add(save, 2, 1);
+        header.Controls.Add(save, 3, 1);
 
         var clear = new Button { Text = "فاکتور جدید", Dock = DockStyle.Fill };
         clear.Click += (_, _) => ClearInvoice();
-        header.Controls.Add(clear, 3, 1);
+        header.Controls.Add(clear, 2, 1);
+
+        paymentMethod.Items.AddRange(new object[] { "نقدی", "کارتخوان", "انتقال بانکی", "اعتباری" });
+        paymentMethod.SelectedIndex = 0;
+        invoicePaid.ValueChanged += (_, _) => UpdateInvoiceTotal();
+        customerName.TextChanged += (_, _) => { if (invoiceItems.Rows.Count > 0) SaveDraftInvoice(); };
+        invoiceNote.TextChanged += (_, _) => { if (invoiceItems.Rows.Count > 0) SaveDraftInvoice(); };
 
         invoiceSearch.KeyDown += (_, e) => { if (e.KeyCode == Keys.Enter) { AddInvoiceItem(null, EventArgs.Empty); e.SuppressKeyPress = true; } };
         invoiceGrid.Dock = DockStyle.Fill; invoiceGrid.ReadOnly = true; invoiceGrid.AllowUserToAddRows = false;
@@ -148,6 +158,14 @@ public class MainForm : Form
         var p = new Panel { Dock = DockStyle.Fill };
         p.Controls.Add(box); box.Dock = DockStyle.Fill;
         p.Controls.Add(new Label { Text = label, Dock = DockStyle.Right, Width = 110, TextAlign = ContentAlignment.MiddleRight });
+        t.Controls.Add(p, c, r);
+    }
+
+    void AddCombo(TableLayoutPanel t, string label, ComboBox box, int c, int r)
+    {
+        box.Dock = DockStyle.Fill;
+        var p = new Panel { Dock = DockStyle.Fill }; p.Controls.Add(box);
+        p.Controls.Add(new Label { Text = label, Dock = DockStyle.Right, Width = 90, TextAlign = ContentAlignment.MiddleRight });
         t.Controls.Add(p, c, r);
     }
 
@@ -315,7 +333,9 @@ VALUES(@product,@name,@qty,@price,@discount)";
 
     void UpdateInvoiceTotal()
     {
-        invoiceTotal.Text = "جمع فاکتور: " + InvoiceTotal().ToString("N0") + " ریال";
+        long paid = Math.Min((long)invoicePaid.Value, InvoiceTotal());
+        long remaining = InvoiceTotal() - paid;
+        invoiceTotal.Text = "جمع: " + InvoiceTotal().ToString("N0") + " ریال | پرداختی: " + paid.ToString("N0") + " | مانده: " + remaining.ToString("N0") + " ریال";
     }
 
     void SaveInvoice()
@@ -323,6 +343,11 @@ VALUES(@product,@name,@qty,@price,@discount)";
         if (invoiceItems.Rows.Count == 0) { MessageBox.Show("فاکتور خالی است."); return; }
 
         long total = InvoiceTotal();
+        long paid = (long)invoicePaid.Value;
+        if (paid > total) { MessageBox.Show("مبلغ پرداختی نمی‌تواند بیشتر از مبلغ فاکتور باشد."); return; }
+        long outstanding = total - paid;
+        if (paymentMethod.SelectedItem?.ToString() == "اعتباری" && outstanding == 0)
+            paymentMethod.SelectedIndex = 0;
         try
         {
             using var cn = Database.Open();
@@ -348,15 +373,38 @@ VALUES(@product,@name,@qty,@price,@discount)";
                 else customerId = Convert.ToInt64(existing);
             }
 
+            if (customerId.HasValue && outstanding > 0)
+            {
+                using var credit = cn.CreateCommand();
+                credit.Transaction = tx;
+                credit.CommandText = "SELECT CreditLimit,Balance FROM Customers WHERE Id=@id";
+                credit.Parameters.AddWithValue("@id", customerId.Value);
+                using var reader = credit.ExecuteReader();
+                if (reader.Read())
+                {
+                    long limit = reader.IsDBNull(0) ? 0 : reader.GetInt64(0);
+                    long balance = reader.IsDBNull(1) ? 0 : reader.GetInt64(1);
+                    if (limit > 0 && balance + outstanding > limit)
+                    {
+                        reader.Close();
+                        MessageBox.Show("سقف اعتبار مشتری کافی نیست. مانده فعلی: " + balance.ToString("N0") + " ریال | سقف اعتبار: " + limit.ToString("N0") + " ریال", "هشدار اعتبار", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        tx.Rollback();
+                        return;
+                    }
+                }
+                reader.Close();
+            }
+
             string invoiceNo = DateTime.Now.ToString("yyyyMMddHHmmssfff");
             using var inv = cn.CreateCommand();
             inv.Transaction = tx;
             inv.CommandText = @"INSERT INTO Invoices(InvoiceNo,Type,CustomerId,UserName,DateText,Total,Paid,Notes)
-VALUES(@no,'Sale',@customer,'کاربر',@date,@total,0,@notes); SELECT last_insert_rowid();";
+VALUES(@no,'Sale',@customer,'کاربر',@date,@total,@paid,@notes); SELECT last_insert_rowid();";
             inv.Parameters.AddWithValue("@no", invoiceNo);
             inv.Parameters.AddWithValue("@customer", (object?)customerId ?? DBNull.Value);
             inv.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             inv.Parameters.AddWithValue("@total", total);
+            inv.Parameters.AddWithValue("@paid", paid);
             inv.Parameters.AddWithValue("@notes", invoiceNote.Text.Trim());
             long invoiceId = Convert.ToInt64(inv.ExecuteScalar());
 
@@ -391,7 +439,7 @@ SELECT @invoice,@product,@qty,@price,PurchasePrice,@discount FROM Products WHERE
                 using var balance = cn.CreateCommand();
                 balance.Transaction = tx;
                 balance.CommandText = "UPDATE Customers SET Balance=Balance+@amount WHERE Id=@id";
-                balance.Parameters.AddWithValue("@amount", total);
+                balance.Parameters.AddWithValue("@amount", outstanding);
                 balance.Parameters.AddWithValue("@id", customerId.Value);
                 balance.ExecuteNonQuery();
             }
@@ -401,7 +449,7 @@ SELECT @invoice,@product,@qty,@price,PurchasePrice,@discount FROM Products WHERE
             audit.CommandText = "INSERT INTO AuditLog(DateText,UserName,Action,Entity,EntityId,Details) VALUES(@date,'کاربر','ثبت فاکتور','Invoice',@id,@details)";
             audit.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             audit.Parameters.AddWithValue("@id", invoiceId);
-            audit.Parameters.AddWithValue("@details", invoiceNo);
+            audit.Parameters.AddWithValue("@details", invoiceNo + " | پرداختی: " + paid + " | مانده: " + outstanding + " | روش: " + (paymentMethod.SelectedItem?.ToString() ?? ""));
             audit.ExecuteNonQuery();
 
             tx.Commit();
@@ -419,6 +467,8 @@ SELECT @invoice,@product,@qty,@price,PurchasePrice,@discount FROM Products WHERE
     void ClearInvoice()
     {
         invoiceItems.Clear();
+        invoicePaid.Value = 0;
+        paymentMethod.SelectedIndex = 0;
         Database.Execute("DELETE FROM DraftInvoiceItems; DELETE FROM DraftInvoice;");
         customerName.Clear();
         invoiceNote.Clear();
