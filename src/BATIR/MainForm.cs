@@ -32,6 +32,7 @@ public class MainForm : Form
         RightToLeft = RightToLeft.Yes; RightToLeftLayout = true;
         Build();
         LoadProducts();
+        LoadDraftInvoice();
     }
 
     void Build()
@@ -212,6 +213,7 @@ WHERE Active=1 AND (Barcode=@q OR Name LIKE @like) ORDER BY CASE WHEN Barcode=@q
                 row["تخفیف"] = Convert.ToInt64(row["تخفیف"]) + (long)invoiceDiscount.Value;
                 row["جمع"] = Convert.ToInt64(row["تعداد"]) * Convert.ToInt64(row["فی"]) - Convert.ToInt64(row["تخفیف"]);
                 UpdateInvoiceTotal();
+                SaveDraftInvoice();
                 invoiceSearch.Clear();
                 invoiceQty.Value = 1;
                 invoiceDiscount.Value = 0;
@@ -225,7 +227,83 @@ WHERE Active=1 AND (Barcode=@q OR Name LIKE @like) ORDER BY CASE WHEN Barcode=@q
         newRow["فی"] = price; newRow["تخفیف"] = discount; newRow["جمع"] = qty * price - discount;
         invoiceItems.Rows.Add(newRow);
         UpdateInvoiceTotal();
+        SaveDraftInvoice();
         invoiceSearch.Clear(); invoiceQty.Value = 1; invoiceDiscount.Value = 0;
+    }
+
+    void LoadDraftInvoice()
+    {
+        try
+        {
+            var header = Database.Query("SELECT CustomerName, Notes FROM DraftInvoice WHERE Id=1 LIMIT 1");
+            if (header.Rows.Count == 0) return;
+
+            customerName.Text = Convert.ToString(header.Rows[0]["CustomerName"]) ?? "";
+            invoiceNote.Text = Convert.ToString(header.Rows[0]["Notes"]) ?? "";
+
+            var items = Database.Query(@"SELECT ProductId,ProductName,Quantity,UnitPrice,Discount
+FROM DraftInvoiceItems ORDER BY Id");
+            foreach (DataRow source in items.Rows)
+            {
+                var row = invoiceItems.NewRow();
+                long qty = Convert.ToInt64(source["Quantity"]);
+                long price = Convert.ToInt64(source["UnitPrice"]);
+                long discount = Convert.ToInt64(source["Discount"]);
+                row["ProductId"] = Convert.ToInt64(source["ProductId"]);
+                row["نام کالا"] = Convert.ToString(source["ProductName"]) ?? "";
+                row["تعداد"] = qty;
+                row["فی"] = price;
+                row["تخفیف"] = discount;
+                row["جمع"] = qty * price - discount;
+                invoiceItems.Rows.Add(row);
+            }
+            UpdateInvoiceTotal();
+            if (invoiceItems.Rows.Count > 0)
+                status.Text = "پیش‌نویس فاکتور از آخرین جلسه بازیابی شد | ریال";
+        }
+        catch (Exception ex)
+        {
+            status.Text = "هشدار: بازیابی پیش‌نویس انجام نشد";
+        }
+    }
+
+    void SaveDraftInvoice()
+    {
+        using var cn = Database.Open();
+        using var tx = cn.BeginTransaction();
+        using (var clear = cn.CreateCommand())
+        {
+            clear.Transaction = tx;
+            clear.CommandText = "DELETE FROM DraftInvoiceItems; DELETE FROM DraftInvoice;";
+            clear.ExecuteNonQuery();
+        }
+
+        if (invoiceItems.Rows.Count > 0)
+        {
+            using var header = cn.CreateCommand();
+            header.Transaction = tx;
+            header.CommandText = @"INSERT INTO DraftInvoice(Id,CustomerName,Notes,UpdatedAt)
+VALUES(1,@customer,@notes,@date)";
+            header.Parameters.AddWithValue("@customer", customerName.Text.Trim());
+            header.Parameters.AddWithValue("@notes", invoiceNote.Text.Trim());
+            header.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            header.ExecuteNonQuery();
+
+            foreach (DataRow row in invoiceItems.Rows)
+            {
+                using var item = cn.CreateCommand();
+                item.Transaction = tx;
+                item.CommandText = @"INSERT INTO DraftInvoiceItems(ProductId,ProductName,Quantity,UnitPrice,Discount)
+VALUES(@product,@name,@qty,@price,@discount)";
+                item.Parameters.AddWithValue("@product", Convert.ToInt64(row["ProductId"]));
+                item.Parameters.AddWithValue("@name", Convert.ToString(row["نام کالا"]) ?? "");
+                item.Parameters.AddWithValue("@qty", Convert.ToInt64(row["تعداد"]));
+                item.Parameters.AddWithValue("@price", Convert.ToInt64(row["فی"]));
+                item.Parameters.AddWithValue("@discount", Convert.ToInt64(row["تخفیف"]));
+                item.ExecuteNonQuery();
+            }
+        }
+        tx.Commit();
     }
 
     long InvoiceTotal()
@@ -341,6 +419,7 @@ SELECT @invoice,@product,@qty,@price,PurchasePrice,@discount FROM Products WHERE
     void ClearInvoice()
     {
         invoiceItems.Clear();
+        Database.Execute("DELETE FROM DraftInvoiceItems; DELETE FROM DraftInvoice;");
         customerName.Clear();
         invoiceNote.Clear();
         invoiceSearch.Clear();
