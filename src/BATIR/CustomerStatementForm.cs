@@ -33,7 +33,7 @@ SELECT c.Name AS [مشتری], c.Phone AS [تلفن],
        COALESCE((SELECT SUM(i.Paid) FROM Invoices i WHERE i.CustomerId=c.Id AND i.Type='Sale'),0) AS [جمع پرداخت فاکتورها],
        COALESCE((SELECT SUM(cr.Amount) FROM CashTransactions cr
                  WHERE cr.Type='CustomerReceipt'
-                 AND cr.Description LIKE '%' || c.Name || '%'),0) AS [جمع دریافت],
+                 AND cr.CustomerId=c.Id),0) AS [جمع دریافت],
        COALESCE((SELECT SUM(sr.Total) FROM SalesReturns sr WHERE sr.CustomerId=c.Id),0) AS [جمع برگشت]
 FROM Customers c
 WHERE (@q='' OR c.Name LIKE @like OR c.Phone LIKE @like)
