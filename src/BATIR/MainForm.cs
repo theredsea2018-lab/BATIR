@@ -25,6 +25,14 @@ public class MainForm : Form
     readonly ComboBox paymentMethod = new();
     readonly Label status = new();
     readonly DataTable invoiceItems = new();
+    readonly DataGridView customerGrid = new();
+    readonly TextBox customerSearch = new();
+    readonly TextBox customerPhone = new();
+    readonly TextBox customerAddress = new();
+    readonly TextBox customerNotes = new();
+    readonly NumericUpDown customerCreditLimit = new() { Minimum = 0, Maximum = 999999999999 };
+    readonly NumericUpDown customerPayment = new() { Minimum = 0, Maximum = 999999999999 };
+    long editingCustomerId = 0;
 
     public MainForm()
     {
@@ -137,12 +145,188 @@ public class MainForm : Form
     TabPage BuildCustomers()
     {
         var p = new TabPage("مشتریان");
-        var panel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(30) };
-        panel.Controls.Add(new Label { Dock = DockStyle.Top, Height = 70,
-            Text = "مدیریت مشتری، سقف اعتبار و مانده بدهکار/بستانکار\n\nدر ثبت فاکتور فروش، مشتری جدید در صورت نیاز خودکار ایجاد می‌شود.",
-            TextAlign = ContentAlignment.TopRight });
-        p.Controls.Add(panel);
+        var root = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8) };
+
+        var searchPanel = new Panel { Dock = DockStyle.Top, Height = 40 };
+        customerSearch.Dock = DockStyle.Fill;
+        customerSearch.PlaceholderText = "جستجوی نام یا تلفن مشتری";
+        customerSearch.TextChanged += (_, _) => LoadCustomers(customerSearch.Text.Trim());
+        searchPanel.Controls.Add(customerSearch);
+
+        var form = new TableLayoutPanel { Dock = DockStyle.Top, Height = 125, ColumnCount = 4, RowCount = 2, Padding = new Padding(4) };
+        for (int i = 0; i < 4; i++) form.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+        AddText(form, "نام مشتری", customerName, 0, 0);
+        AddText(form, "تلفن", customerPhone, 1, 0);
+        AddText(form, "آدرس", customerAddress, 2, 0);
+        AddNum(form, "سقف اعتبار", customerCreditLimit, 3, 0);
+        AddText(form, "توضیحات", customerNotes, 0, 1);
+
+        var save = new Button { Text = "ثبت / ویرایش مشتری", Dock = DockStyle.Fill };
+        save.Click += (_, _) => SaveCustomer();
+        form.Controls.Add(save, 1, 1);
+
+        var payment = new Button { Text = "ثبت دریافت از مشتری", Dock = DockStyle.Fill };
+        payment.Click += (_, _) => RecordCustomerPayment();
+        form.Controls.Add(payment, 2, 1);
+
+        var cancel = new Button { Text = "پاک کردن فرم", Dock = DockStyle.Fill };
+        cancel.Click += (_, _) => ClearCustomerForm();
+        form.Controls.Add(cancel, 3, 1);
+
+        var paymentPanel = new Panel { Dock = DockStyle.Top, Height = 42, Padding = new Padding(4) };
+        AddNumToPanel(paymentPanel, "مبلغ دریافت", customerPayment);
+
+        customerGrid.Dock = DockStyle.Fill;
+        customerGrid.ReadOnly = true;
+        customerGrid.AllowUserToAddRows = false;
+        customerGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+        customerGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        customerGrid.CellDoubleClick += (_, e) => { if (e.RowIndex >= 0) LoadCustomerForEdit(e.RowIndex); };
+
+        root.Controls.Add(customerGrid);
+        root.Controls.Add(paymentPanel);
+        root.Controls.Add(form);
+        root.Controls.Add(searchPanel);
+        p.Controls.Add(root);
+        p.Enter += (_, _) => LoadCustomers(customerSearch.Text.Trim());
         return p;
+    }
+
+    void AddNumToPanel(Panel panel, string label, NumericUpDown box)
+    {
+        var l = new Label { Text = label, Dock = DockStyle.Right, Width = 100, TextAlign = ContentAlignment.MiddleRight };
+        box.Dock = DockStyle.Fill;
+        panel.Controls.Add(box);
+        panel.Controls.Add(l);
+    }
+
+    void LoadCustomers(string q = "")
+    {
+        var sql = @"SELECT Id, Name AS [نام مشتری], Phone AS [تلفن], Address AS [آدرس],
+CreditLimit AS [سقف اعتبار], Balance AS [مانده بدهکار] FROM Customers";
+        if (!string.IsNullOrWhiteSpace(q))
+            sql += " WHERE Name LIKE @q OR Phone LIKE @q";
+        sql += " ORDER BY Id DESC";
+        var dt = string.IsNullOrWhiteSpace(q)
+            ? Database.Query(sql)
+            : Database.Query(sql, new SqliteParameter("@q", "%" + q + "%"));
+        customerGrid.DataSource = dt;
+    }
+
+    void LoadCustomerForEdit(int rowIndex)
+    {
+        if (customerGrid.Rows[rowIndex].Cells["Id"].Value == null) return;
+        editingCustomerId = Convert.ToInt64(customerGrid.Rows[rowIndex].Cells["Id"].Value);
+        var dt = Database.Query("SELECT Name,Phone,Address,CreditLimit,Balance,Notes FROM Customers WHERE Id=@id",
+            new SqliteParameter("@id", editingCustomerId));
+        if (dt.Rows.Count == 0) return;
+        customerName.Text = Convert.ToString(dt.Rows[0]["Name"]) ?? "";
+        customerPhone.Text = Convert.ToString(dt.Rows[0]["Phone"]) ?? "";
+        customerAddress.Text = Convert.ToString(dt.Rows[0]["Address"]) ?? "";
+        customerCreditLimit.Value = Math.Max(0, Convert.ToDecimal(dt.Rows[0]["CreditLimit"]));
+        customerNotes.Text = Convert.ToString(dt.Rows[0]["Notes"]) ?? "";
+        customerPayment.Value = 0;
+    }
+
+    void SaveCustomer()
+    {
+        if (string.IsNullOrWhiteSpace(customerName.Text))
+        {
+            MessageBox.Show("نام مشتری را وارد کنید.");
+            return;
+        }
+        if (editingCustomerId == 0)
+        {
+            Database.Execute(@"INSERT INTO Customers(Name,Phone,Address,CreditLimit,Balance,Notes)
+VALUES(@name,@phone,@address,@limit,0,@notes)",
+                new SqliteParameter("@name", customerName.Text.Trim()),
+                new SqliteParameter("@phone", customerPhone.Text.Trim()),
+                new SqliteParameter("@address", customerAddress.Text.Trim()),
+                new SqliteParameter("@limit", (long)customerCreditLimit.Value),
+                new SqliteParameter("@notes", customerNotes.Text.Trim()));
+            status.Text = "مشتری جدید ثبت شد";
+        }
+        else
+        {
+            Database.Execute(@"UPDATE Customers SET Name=@name,Phone=@phone,Address=@address,
+CreditLimit=@limit,Notes=@notes WHERE Id=@id",
+                new SqliteParameter("@name", customerName.Text.Trim()),
+                new SqliteParameter("@phone", customerPhone.Text.Trim()),
+                new SqliteParameter("@address", customerAddress.Text.Trim()),
+                new SqliteParameter("@limit", (long)customerCreditLimit.Value),
+                new SqliteParameter("@notes", customerNotes.Text.Trim()),
+                new SqliteParameter("@id", editingCustomerId));
+            status.Text = "اطلاعات مشتری ویرایش شد";
+        }
+        ClearCustomerForm();
+        LoadCustomers(customerSearch.Text.Trim());
+    }
+
+    void RecordCustomerPayment()
+    {
+        if (editingCustomerId == 0)
+        {
+            MessageBox.Show("ابتدا مشتری را از جدول انتخاب کنید.");
+            return;
+        }
+        long amount = (long)customerPayment.Value;
+        if (amount <= 0) { MessageBox.Show("مبلغ دریافت را وارد کنید."); return; }
+
+        using var cn = Database.Open();
+        using var tx = cn.BeginTransaction();
+        using var get = cn.CreateCommand();
+        get.Transaction = tx;
+        get.CommandText = "SELECT Balance FROM Customers WHERE Id=@id";
+        get.Parameters.AddWithValue("@id", editingCustomerId);
+        var value = get.ExecuteScalar();
+        long balance = value == null || value == DBNull.Value ? 0 : Convert.ToInt64(value);
+        if (amount > balance)
+        {
+            tx.Rollback();
+            MessageBox.Show("مبلغ دریافت نمی‌تواند بیشتر از مانده بدهکار مشتری باشد.");
+            return;
+        }
+
+        using var update = cn.CreateCommand();
+        update.Transaction = tx;
+        update.CommandText = "UPDATE Customers SET Balance=Balance-@amount WHERE Id=@id";
+        update.Parameters.AddWithValue("@amount", amount);
+        update.Parameters.AddWithValue("@id", editingCustomerId);
+        update.ExecuteNonQuery();
+
+        using var cash = cn.CreateCommand();
+        cash.Transaction = tx;
+        cash.CommandText = @"INSERT INTO CashTransactions(DateText,Type,Amount,Description,UserName)
+VALUES(@date,'CustomerReceipt',@amount,@desc,'کاربر')";
+        cash.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+        cash.Parameters.AddWithValue("@amount", amount);
+        cash.Parameters.AddWithValue("@desc", "دریافت از مشتری: " + customerName.Text.Trim());
+        cash.ExecuteNonQuery();
+
+        using var audit = cn.CreateCommand();
+        audit.Transaction = tx;
+        audit.CommandText = @"INSERT INTO AuditLog(DateText,UserName,Action,Entity,EntityId,Details)
+VALUES(@date,'کاربر','دریافت از مشتری','Customer',@id,@details)";
+        audit.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+        audit.Parameters.AddWithValue("@id", editingCustomerId);
+        audit.Parameters.AddWithValue("@details", "مبلغ: " + amount);
+        audit.ExecuteNonQuery();
+
+        tx.Commit();
+        customerPayment.Value = 0;
+        LoadCustomers(customerSearch.Text.Trim());
+        status.Text = "دریافت مشتری ثبت شد";
+    }
+
+    void ClearCustomerForm()
+    {
+        editingCustomerId = 0;
+        customerName.Clear();
+        customerPhone.Clear();
+        customerAddress.Clear();
+        customerNotes.Clear();
+        customerCreditLimit.Value = 0;
+        customerPayment.Value = 0;
     }
 
     TabPage SimplePage(string title, string text)
