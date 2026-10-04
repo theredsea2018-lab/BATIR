@@ -69,15 +69,44 @@ public class MainForm : Form
         var setting = Database.Query("SELECT Value FROM Settings WHERE Key='AutoLockMinutes' LIMIT 1");
         if (setting.Rows.Count == 0 || !int.TryParse(Convert.ToString(setting.Rows[0]["Value"]), out var minutes) || minutes <= 0) return;
         if ((DateTime.Now - lastActivity).TotalMinutes < minutes) return;
+        var hashTable = Database.Query("SELECT Value FROM Settings WHERE Key='AutoLockPasswordHash' LIMIT 1");
+        var expectedHash = hashTable.Rows.Count == 0 ? "" : Convert.ToString(hashTable.Rows[0]["Value"]) ?? "";
+        if (string.IsNullOrWhiteSpace(expectedHash))
+        {
+            lastActivity = DateTime.Now;
+            return;
+        }
+
         lockDialogOpen = true;
         try
         {
-            using var lockForm = new Form { Text = "BATIR | قفل خودکار", Width = 390, Height = 180, StartPosition = FormStartPosition.CenterParent,
-                FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false, RightToLeft = RightToLeft.Yes, RightToLeftLayout = true };
-            var label = new Label { Text = "برای ادامه، دکمه بازگشت به برنامه را بزنید.", Dock = DockStyle.Top, Height = 55, TextAlign = ContentAlignment.MiddleCenter };
-            var button = new Button { Text = "بازگشت به برنامه", Dock = DockStyle.Bottom, Height = 50 };
-            button.Click += (_, _) => lockForm.Close();
-            lockForm.Controls.Add(label); lockForm.Controls.Add(button);
+            using var lockForm = new Form { Text = "BATIR | قفل خودکار", Width = 430, Height = 205, StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false, ControlBox = false,
+                RightToLeft = RightToLeft.Yes, RightToLeftLayout = true };
+            var label = new Label { Text = "برنامه قفل شده است. رمز را وارد کنید:", Dock = DockStyle.Top, Height = 48, TextAlign = ContentAlignment.MiddleCenter };
+            var password = new TextBox { UseSystemPasswordChar = true, Dock = DockStyle.Top, Height = 32 };
+            var button = new Button { Text = "باز کردن قفل", Dock = DockStyle.Bottom, Height = 48 };
+            var error = new Label { Text = "", Dock = DockStyle.Bottom, Height = 28, TextAlign = ContentAlignment.MiddleCenter };
+            button.Click += (_, _) =>
+            {
+                if (PasswordMatches(password.Text, expectedHash))
+                    lockForm.DialogResult = DialogResult.OK;
+                else
+                {
+                    error.Text = "رمز واردشده صحیح نیست.";
+                    password.Clear();
+                    password.Focus();
+                }
+            };
+            password.KeyDown += (_, e) =>
+            {
+                if (e.KeyCode == Keys.Enter) { button.PerformClick(); e.SuppressKeyPress = true; }
+            };
+            lockForm.Controls.Add(password);
+            lockForm.Controls.Add(label);
+            lockForm.Controls.Add(error);
+            lockForm.Controls.Add(button);
+            lockForm.Shown += (_, _) => password.Focus();
             lockForm.ShowDialog(this);
         }
         finally
@@ -85,6 +114,13 @@ public class MainForm : Form
             lastActivity = DateTime.Now;
             lockDialogOpen = false;
         }
+    }
+
+    static bool PasswordMatches(string password, string expectedHash)
+    {
+        using var sha = SHA256.Create();
+        var actual = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(password))).Replace("-", "").ToLowerInvariant();
+        return string.Equals(actual, expectedHash, StringComparison.OrdinalIgnoreCase);
     }
 
     void Build()
