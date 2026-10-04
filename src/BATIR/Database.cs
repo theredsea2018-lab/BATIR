@@ -90,7 +90,10 @@ CREATE INDEX IF NOT EXISTS IX_Invoices_InvoiceNo ON Invoices(InvoiceNo);
 CREATE INDEX IF NOT EXISTS IX_Invoices_DateText ON Invoices(DateText);
 CREATE INDEX IF NOT EXISTS IX_InvoiceItems_InvoiceId ON InvoiceItems(InvoiceId);
 CREATE INDEX IF NOT EXISTS IX_CashTransactions_DateText ON CashTransactions(DateText);
-CREATE INDEX IF NOT EXISTS IX_AuditLog_DateText ON AuditLog(DateText);";
+CREATE INDEX IF NOT EXISTS IX_AuditLog_DateText ON AuditLog(DateText);
+CREATE INDEX IF NOT EXISTS IX_CashTransactions_Type ON CashTransactions(Type);
+CREATE INDEX IF NOT EXISTS IX_CashTransactions_CustomerId ON CashTransactions(CustomerId);
+CREATE INDEX IF NOT EXISTS IX_CashTransactions_SupplierId ON CashTransactions(SupplierId);";
         cmd.ExecuteNonQuery();
 
         // Defaults are inserted without overwriting values the user may have changed.
@@ -105,6 +108,27 @@ INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) VALUES
 ('AutoLockMinutes','0',datetime('now')),
 ('NegativeStockAllowed','false',datetime('now'));";
         seed.ExecuteNonQuery();
+
+        // Lightweight schema migrations for databases created by older BATIR builds.
+        AddColumnIfMissing(cn, "CashTransactions", "CustomerId", "INTEGER");
+        AddColumnIfMissing(cn, "CashTransactions", "SupplierId", "INTEGER");
+        AddColumnIfMissing(cn, "CashTransactions", "PaymentMethod", "TEXT");
+        AddColumnIfMissing(cn, "CashTransactions", "ReferenceType", "TEXT");
+        AddColumnIfMissing(cn, "CashTransactions", "ReferenceId", "INTEGER");
+    }
+
+    static void AddColumnIfMissing(SqliteConnection cn, string table, string column, string definition)
+    {
+        using var check = cn.CreateCommand();
+        check.CommandText = $"PRAGMA table_info({table});";
+        using var reader = check.ExecuteReader();
+        while (reader.Read())
+            if (string.Equals(Convert.ToString(reader["name"]), column, StringComparison.OrdinalIgnoreCase))
+                return;
+
+        using var alter = cn.CreateCommand();
+        alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {definition};";
+        alter.ExecuteNonQuery();
     }
 
     public static DataTable Query(string sql, params SqliteParameter[] parameters)
