@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+using Microsoft.Data.Sqlite;\nusing System.Security.Cryptography;\nusing System.Text;
 
 namespace BATIR;
 
@@ -9,7 +9,7 @@ public class SettingsForm : Form
     readonly ComboBox language = new();
     readonly ComboBox calendar = new();
     readonly CheckBox persianDigits = new() { Text = "نمایش اعداد فارسی در رابط کاربری", AutoSize = true };
-    readonly NumericUpDown autoLock = new() { Minimum = 0, Maximum = 1440 };
+    readonly NumericUpDown autoLock = new() { Minimum = 0, Maximum = 1440 };\n    readonly TextBox autoLockPassword = new() { UseSystemPasswordChar = true };\n    readonly TextBox autoLockPasswordConfirm = new() { UseSystemPasswordChar = true };
     readonly CheckBox negativeStock = new() { Text = "اجازه فروش با موجودی منفی", AutoSize = true };
     readonly Button save = new() { Text = "ذخیره تنظیمات", Dock = DockStyle.Bottom, Height = 55 };
 
@@ -27,7 +27,7 @@ public class SettingsForm : Form
         calendar.Items.AddRange(new object[] { "شمسی", "میلادی" });
         calendar.DropDownStyle = ComboBoxStyle.DropDownList;
 
-        var table = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 7, Padding = new Padding(18) };
+        var table = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 9, Padding = new Padding(18) };
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65));
         Add(table, "واحد پول", currency, 0);
@@ -68,7 +68,7 @@ public class SettingsForm : Form
                 case "AutoLockMinutes":
                     if (int.TryParse(value, out var minutes)) autoLock.Value = Math.Max(0, Math.Min(1440, minutes));
                     break;
-                case "NegativeStockAllowed": negativeStock.Checked = value.Equals("true", StringComparison.OrdinalIgnoreCase); break;
+                case "NegativeStockAllowed": negativeStock.Checked = value.Equals("true", StringComparison.OrdinalIgnoreCase); break;\n                case "AutoLockPasswordHash": autoLockPassword.Text = ""; break;
             }
         }
     }
@@ -83,7 +83,7 @@ public class SettingsForm : Form
             ["DateCalendar"] = calendar.SelectedIndex == 1 ? "Gregorian" : "Shamsi",
             ["PersianDigits"] = persianDigits.Checked ? "true" : "false",
             ["AutoLockMinutes"] = ((int)autoLock.Value).ToString(),
-            ["NegativeStockAllowed"] = negativeStock.Checked ? "true" : "false"
+            ["NegativeStockAllowed"] = negativeStock.Checked ? "true" : "false",\n            ["AutoLockPasswordHash"] = passwordHash
         };
 
         if (string.IsNullOrWhiteSpace(values["CurrencyName"]) || string.IsNullOrWhiteSpace(values["CurrencyCode"]))
