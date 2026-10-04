@@ -113,7 +113,8 @@ INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) VALUES
 ('DateCalendar','Shamsi',datetime('now')),
 ('PersianDigits','true',datetime('now')),
 ('AutoLockMinutes','0',datetime('now')),
-('NegativeStockAllowed','false',datetime('now')),\n('AutoLockPasswordHash','',datetime('now'));";
+('NegativeStockAllowed','false',datetime('now')),
+('AutoLockPasswordHash','',datetime('now'));";
         seed.ExecuteNonQuery();
 
         // Lightweight schema migrations for databases created by older BATIR builds.
