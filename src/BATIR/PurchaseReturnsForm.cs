@@ -71,12 +71,17 @@ WHERE Id=(SELECT InvoiceId FROM InvoiceItems WHERE Id=@item)";
                 paid = r.GetInt64(3);
             }
 
-            using (var a = cn.CreateCommand())
+            using (var dup = cn.CreateCommand())
             {
-                a.Transaction = tx;
-                a.CommandText = "SELECT COALESCE(SUM(Total),0) FROM PurchaseReturns WHERE ReturnNo IN (SELECT ReturnNo FROM PurchaseReturns WHERE ReturnNo IS NOT NULL) AND SupplierId=@s AND Total>0";
-                a.Parameters.AddWithValue("@s", supplierId);
-                // The legacy schema does not retain OriginalInvoiceId, so duplicate protection is handled by stock validation below.
+                dup.Transaction = tx;
+                dup.CommandText = "SELECT COALESCE(SUM(Total),0) FROM PurchaseReturns WHERE OriginalInvoiceId=@id";
+                dup.Parameters.AddWithValue("@id", originalId);
+                if (Convert.ToInt64(dup.ExecuteScalar() ?? 0) >= total)
+                {
+                    tx.Rollback();
+                    MessageBox.Show("این فاکتور قبلاً به‌طور کامل برگشت خورده است.");
+                    return;
+                }
             }
 
             foreach (DataRow row in items.Rows)
@@ -99,9 +104,10 @@ WHERE Id=(SELECT InvoiceId FROM InvoiceItems WHERE Id=@item)";
             string no = DateTime.Now.ToString("yyyyMMddHHmmssfff");
             using var h = cn.CreateCommand();
             h.Transaction = tx;
-            h.CommandText = @"INSERT INTO PurchaseReturns(ReturnNo,SupplierId,DateText,Total,Notes)
-VALUES(@no,@supplier,@date,@total,@notes); SELECT last_insert_rowid();";
+            h.CommandText = @"INSERT INTO PurchaseReturns(ReturnNo,OriginalInvoiceId,SupplierId,DateText,Total,Notes)
+VALUES(@no,@invoice,@supplier,@date,@total,@notes); SELECT last_insert_rowid();";
             h.Parameters.AddWithValue("@no", no);
+            h.Parameters.AddWithValue("@invoice", originalId);
             h.Parameters.AddWithValue("@supplier", supplierId > 0 ? (object)supplierId : DBNull.Value);
             h.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             h.Parameters.AddWithValue("@total", total);
