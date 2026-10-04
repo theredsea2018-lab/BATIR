@@ -54,7 +54,7 @@ public class MainForm : Form
         tabs.TabPages.Add(BuildChecksPage());
         var returnsPage = new TabPage("برگشت از فروش");
         var returnsButton = new Button { Text = "باز کردن", Dock = DockStyle.Top, Height = 70 };
-        returnsButton.Click += (_, _) => Activator.CreateInstance(Type.GetType("BATIR." + "SalesReturns" + "Form")!) is Form form ? form.ShowDialog(this) : (object)null!;
+        returnsButton.Click += (_, _) => { var form = Activator.CreateInstance(Type.GetType("BATIR." + "SalesReturns" + "Form")!) as Form; if (form != null) form.ShowDialog(this); };
         returnsPage.Controls.Add(returnsButton);
         tabs.TabPages.Add(returnsPage);
         tabs.TabPages.Add(SimplePage("تنظیمات", "ریال | فارسی | پایگاه داده SQLite"));
