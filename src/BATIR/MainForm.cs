@@ -97,6 +97,11 @@ public class MainForm : Form
         documentSearchButton.Click += (_, _) => new DocumentSearchForm().ShowDialog(this);
         documentSearchPage.Controls.Add(documentSearchButton);
         tabs.TabPages.Add(documentSearchPage);
+        var debtorsPage = new TabPage("بدهکاران و بستانکاران");
+        var debtorsButton = new Button { Text = "باز کردن گزارش بدهکاران و بستانکاران", Dock = DockStyle.Top, Height = 70 };
+        debtorsButton.Click += (_, _) => new DebtorsCreditorsForm().ShowDialog(this);
+        debtorsPage.Controls.Add(debtorsButton);
+        tabs.TabPages.Add(debtorsPage);
         var settingsPage = new TabPage("تنظیمات");
         var settingsButton = new Button { Text = "باز کردن تنظیمات BATIR", Dock = DockStyle.Top, Height = 70 };
         settingsButton.Click += (_, _) => new SettingsForm().ShowDialog(this);
