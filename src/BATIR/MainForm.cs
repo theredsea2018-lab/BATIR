@@ -92,6 +92,11 @@ public class MainForm : Form
         reportButton.Click += (_, _) => new InventoryReportForm().ShowDialog(this);
         reportPage.Controls.Add(reportButton);
         tabs.TabPages.Add(reportPage);
+        var documentSearchPage = new TabPage("جستجوی اسناد");
+        var documentSearchButton = new Button { Text = "باز کردن جستجوی اسناد", Dock = DockStyle.Top, Height = 70 };
+        documentSearchButton.Click += (_, _) => new DocumentSearchForm().ShowDialog(this);
+        documentSearchPage.Controls.Add(documentSearchButton);
+        tabs.TabPages.Add(documentSearchPage);
         var settingsPage = new TabPage("تنظیمات");
         var settingsButton = new Button { Text = "باز کردن تنظیمات BATIR", Dock = DockStyle.Top, Height = 70 };
         settingsButton.Click += (_, _) => new SettingsForm().ShowDialog(this);
