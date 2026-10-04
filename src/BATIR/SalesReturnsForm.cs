@@ -8,7 +8,7 @@ public class SalesReturnsForm : Form
     readonly TextBox invoiceNo = new();
     readonly DataGridView grid = new();
     readonly Button load = new() { Text = "بارگذاری فاکتور" };
-    readonly Button ret = new() { Text = "برگشت کامل فاکتور", Dock = DockStyle.Fill };
+    readonly Button ret = new() { Text = "ثبت برگشت اقلام انتخابی", Dock = DockStyle.Fill };
     DataTable items = new();
 
     public SalesReturnsForm()
@@ -21,7 +21,7 @@ public class SalesReturnsForm : Form
         load.Click += (_, _) => LoadInvoice();
         ret.Dock = DockStyle.Bottom; ret.Height = 55; ret.Enabled = false;
         ret.Click += (_, _) => ReturnInvoice();
-        grid.Dock = DockStyle.Fill; grid.ReadOnly = true; grid.AllowUserToAddRows = false;
+        grid.Dock = DockStyle.Fill; grid.AllowUserToAddRows = false;
         grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         Controls.Add(grid); Controls.Add(ret); Controls.Add(top);
     }
@@ -32,8 +32,12 @@ public class SalesReturnsForm : Form
         if (q == "") { MessageBox.Show("شماره فاکتور را وارد کنید."); return; }
 
         items = Database.Query(@"
-SELECT i.Id, i.InvoiceId, i.ProductId, p.Name AS [کالا], i.Quantity AS [تعداد],
-       i.UnitPrice AS [فی], i.Discount AS [تخفیف],
+SELECT i.Id, i.InvoiceId, i.ProductId, p.Name AS [کالا],
+       i.Quantity AS [تعداد], i.UnitPrice AS [فی], i.Discount AS [تخفیف],
+       COALESCE((SELECT SUM(r.Quantity) FROM SalesReturnItems r
+                 WHERE r.OriginalInvoiceItemId=i.Id),0) AS [قبلاً برگشت],
+       i.Quantity-COALESCE((SELECT SUM(r.Quantity) FROM SalesReturnItems r
+                 WHERE r.OriginalInvoiceItemId=i.Id),0) AS [قابل برگشت],
        (i.Quantity*i.UnitPrice-i.Discount) AS [جمع]
 FROM InvoiceItems i
 JOIN Invoices v ON v.Id=i.InvoiceId
@@ -42,7 +46,20 @@ WHERE v.InvoiceNo=@no AND v.Type='Sale'
 ORDER BY i.Id",
             new SqliteParameter("@no", q));
 
+        if (!items.Columns.Contains("تعداد برگشت"))
+            items.Columns.Add("تعداد برگشت", typeof(long));
+        foreach (DataRow row in items.Rows)
+            row["تعداد برگشت"] = 0L;
+
         grid.DataSource = items;
+        if (grid.Columns["Id"] != null) grid.Columns["Id"].Visible = false;
+        if (grid.Columns["InvoiceId"] != null) grid.Columns["InvoiceId"].Visible = false;
+        if (grid.Columns["ProductId"] != null) grid.Columns["ProductId"].Visible = false;
+        if (grid.Columns["تعداد"] != null) grid.Columns["تعداد"].ReadOnly = true;
+        if (grid.Columns["قبلاً برگشت"] != null) grid.Columns["قبلاً برگشت"].ReadOnly = true;
+        if (grid.Columns["قابل برگشت"] != null) grid.Columns["قابل برگشت"].ReadOnly = true;
+        if (grid.Columns["جمع"] != null) grid.Columns["جمع"].ReadOnly = true;
+        if (grid.Columns["تعداد برگشت"] != null) grid.Columns["تعداد برگشت"].ReadOnly = false;
         ret.Enabled = items.Rows.Count > 0;
         if (items.Rows.Count == 0) MessageBox.Show("فاکتور فروش پیدا نشد.");
     }
@@ -50,9 +67,6 @@ ORDER BY i.Id",
     void ReturnInvoice()
     {
         if (items.Rows.Count == 0) return;
-        if (MessageBox.Show(
-            "کل اقلام این فاکتور به انبار برگردانده می‌شود. مبلغ پرداخت‌شده به عنوان بازپرداخت ثبت و مانده بدهی مشتری اصلاح می‌شود. ادامه؟",
-            "برگشت از فروش", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
 
         try
         {
@@ -76,19 +90,35 @@ WHERE Id=(SELECT InvoiceId FROM InvoiceItems WHERE Id=@item)";
                 paid = r.GetInt64(3);
             }
 
-            long already;
-            using (var a = cn.CreateCommand())
+            var selected = new List<(long itemId, long productId, long qty, long price, long discount, long soldQty)>();
+            long returnTotal = 0;
+
+            foreach (DataRow row in items.Rows)
             {
-                a.Transaction = tx;
-                a.CommandText = "SELECT COALESCE(SUM(Total),0) FROM SalesReturns WHERE OriginalInvoiceId=@id";
-                a.Parameters.AddWithValue("@id", originalId);
-                already = Convert.ToInt64(a.ExecuteScalar());
+                long returnQty;
+                try { returnQty = Convert.ToInt64(row["تعداد برگشت"]); }
+                catch { throw new InvalidOperationException("تعداد برگشت باید عدد صحیح باشد."); }
+
+                long soldQty = Convert.ToInt64(row["تعداد"]);
+                long returnable = Convert.ToInt64(row["قابل برگشت"]);
+                if (returnQty < 0 || returnQty > returnable)
+                    throw new InvalidOperationException($"تعداد برگشت برای «{row["کالا"]}» باید بین صفر و {returnable} باشد.");
+                if (returnQty == 0) continue;
+
+                long price = Convert.ToInt64(row["فی"]);
+                long discount = Convert.ToInt64(row["تخفیف"]);
+                long lineTotal = returnQty * price;
+                long lineDiscount = soldQty == 0 ? 0 : (long)Math.Round(discount * (double)returnQty / soldQty);
+                lineTotal -= Math.Min(lineTotal, lineDiscount);
+                returnTotal += lineTotal;
+                selected.Add((Convert.ToInt64(row["Id"]), Convert.ToInt64(row["ProductId"]),
+                    returnQty, price, lineDiscount, soldQty));
             }
 
-            if (already >= total)
+            if (selected.Count == 0 || returnTotal <= 0)
             {
                 tx.Rollback();
-                MessageBox.Show("این فاکتور قبلاً به‌طور کامل برگشت خورده است.");
+                MessageBox.Show("حداقل یک قلم با تعداد برگشت بیشتر از صفر انتخاب کنید.");
                 return;
             }
 
@@ -97,46 +127,65 @@ WHERE Id=(SELECT InvoiceId FROM InvoiceItems WHERE Id=@item)";
             h.Transaction = tx;
             h.CommandText = @"
 INSERT INTO SalesReturns(ReturnNo,OriginalInvoiceId,CustomerId,DateText,Total,Notes)
-VALUES(@no,@inv,@customer,@date,@total,'برگشت کامل فاکتور'); SELECT last_insert_rowid();";
+VALUES(@no,@inv,@customer,@date,@total,'برگشت جزئی/کامل اقلام'); SELECT last_insert_rowid();";
             h.Parameters.AddWithValue("@no", no);
             h.Parameters.AddWithValue("@inv", originalId);
             h.Parameters.AddWithValue("@customer", customerId == 0 ? DBNull.Value : (object)customerId);
             h.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-            h.Parameters.AddWithValue("@total", total);
+            h.Parameters.AddWithValue("@total", returnTotal);
             long returnId = Convert.ToInt64(h.ExecuteScalar());
 
-            foreach (DataRow row in items.Rows)
+            foreach (var item in selected)
             {
-                long pid = Convert.ToInt64(row["ProductId"]);
-                long qty = Convert.ToInt64(row["تعداد"]);
-                long price = Convert.ToInt64(row["فی"]);
-                long disc = Convert.ToInt64(row["تخفیف"]);
-
                 using var ri = cn.CreateCommand();
                 ri.Transaction = tx;
                 ri.CommandText = @"INSERT INTO SalesReturnItems
-(ReturnId,ProductId,Quantity,UnitPrice,Discount)
-VALUES(@r,@p,@q,@u,@d)";
+(ReturnId,ProductId,Quantity,UnitPrice,Discount,OriginalInvoiceItemId)
+VALUES(@r,@p,@q,@u,@d,@oi)";
                 ri.Parameters.AddWithValue("@r", returnId);
-                ri.Parameters.AddWithValue("@p", pid);
-                ri.Parameters.AddWithValue("@q", qty);
-                ri.Parameters.AddWithValue("@u", price);
-                ri.Parameters.AddWithValue("@d", disc);
+                ri.Parameters.AddWithValue("@p", item.productId);
+                ri.Parameters.AddWithValue("@q", item.qty);
+                ri.Parameters.AddWithValue("@u", item.price);
+                ri.Parameters.AddWithValue("@d", item.discount);
+                ri.Parameters.AddWithValue("@oi", item.itemId);
                 ri.ExecuteNonQuery();
 
                 using var st = cn.CreateCommand();
                 st.Transaction = tx;
                 st.CommandText = "UPDATE Products SET Stock=Stock+@q WHERE Id=@p";
-                st.Parameters.AddWithValue("@q", qty);
-                st.Parameters.AddWithValue("@p", pid);
+                st.Parameters.AddWithValue("@q", item.qty);
+                st.Parameters.AddWithValue("@p", item.productId);
                 st.ExecuteNonQuery();
             }
 
-            long outstanding = Math.Max(0, total - paid);
-            long debtReduction = Math.Min(outstanding, total);
-            long refundAmount = Math.Max(0, total - outstanding);
+            // Return value is applied to remaining customer debt first.
+            // Previous partial returns are reconstructed from return and refund history.
+            long previousRefunds;
+            using (var pr = cn.CreateCommand())
+            {
+                pr.Transaction = tx;
+                pr.CommandText = @"SELECT COALESCE(SUM(Amount),0) FROM CashTransactions
+WHERE ReferenceType='SalesReturn' AND ReferenceId IN
+(SELECT Id FROM SalesReturns WHERE OriginalInvoiceId=@id)";
+                pr.Parameters.AddWithValue("@id", originalId);
+                previousRefunds = Convert.ToInt64(pr.ExecuteScalar());
+            }
 
-            if (customerId > 0 && outstanding > 0)
+            long previousReturns;
+            using (var rr = cn.CreateCommand())
+            {
+                rr.Transaction = tx;
+                rr.CommandText = "SELECT COALESCE(SUM(Total),0) FROM SalesReturns WHERE OriginalInvoiceId=@id";
+                rr.Parameters.AddWithValue("@id", originalId);
+                previousReturns = Convert.ToInt64(rr.ExecuteScalar()) - returnTotal;
+            }
+
+            long previousDebtReduction = Math.Max(0, previousReturns - previousRefunds);
+            long remainingOutstanding = Math.Max(0, total - paid - previousDebtReduction);
+            long debtReduction = Math.Min(returnTotal, remainingOutstanding);
+            long refundAmount = returnTotal - debtReduction;
+
+            if (customerId > 0 && debtReduction > 0)
             {
                 using var b = cn.CreateCommand();
                 b.Transaction = tx;
@@ -171,19 +220,20 @@ VALUES(@d,'کاربر','برگشت از فروش','SalesReturn',@id,@details)";
             au.Parameters.AddWithValue("@d", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             au.Parameters.AddWithValue("@id", returnId);
             au.Parameters.AddWithValue("@details",
-                "فاکتور: " + originalId + " | مبلغ: " + total +
+                "فاکتور: " + originalId + " | مبلغ برگشت: " + returnTotal +
                 " | پرداخت‌شده اولیه: " + paid +
-                " | بازپرداخت: " + refundAmount +
-                " | کاهش بدهی: " + debtReduction);
+                " | کاهش بدهی: " + debtReduction +
+                " | بازپرداخت: " + refundAmount);
             au.ExecuteNonQuery();
 
             tx.Commit();
-            MessageBox.Show("برگشت از فروش ثبت شد. شماره: " + no);
+            MessageBox.Show("برگشت ثبت شد. مبلغ: " + returnTotal + " | شماره: " + no);
             LoadInvoice();
         }
         catch (Exception ex)
         {
-            MessageBox.Show("ثبت برگشت انجام نشد و تغییری ذخیره نشد.\n" + ex.Message,
+            MessageBox.Show("ثبت برگشت انجام نشد و تغییری ذخیره نشد.
+" + ex.Message,
                 "خطا", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
