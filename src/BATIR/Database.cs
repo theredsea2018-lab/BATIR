@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS InvoiceItems(
 CREATE TABLE IF NOT EXISTS Checks(
  Id INTEGER PRIMARY KEY AUTOINCREMENT, CheckNo TEXT, Bank TEXT,
  Amount INTEGER NOT NULL, DueDate TEXT, Type TEXT NOT NULL,
- Status TEXT NOT NULL, PartyName TEXT, Notes TEXT);
+ Status TEXT NOT NULL, PartyName TEXT, Notes TEXT,
+ LedgerStatus TEXT);
 CREATE TABLE IF NOT EXISTS CashTransactions(
  Id INTEGER PRIMARY KEY AUTOINCREMENT, DateText TEXT NOT NULL,
  Type TEXT NOT NULL, Amount INTEGER NOT NULL, Description TEXT, UserName TEXT,
@@ -115,6 +116,7 @@ INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) VALUES
         AddColumnIfMissing(cn, "CashTransactions", "ReferenceType", "TEXT");
         AddColumnIfMissing(cn, "CashTransactions", "ReferenceId", "INTEGER");
         AddColumnIfMissing(cn, "PurchaseReturns", "OriginalInvoiceId", "INTEGER");
+        AddColumnIfMissing(cn, "Checks", "LedgerStatus", "TEXT");
 
         using var indexes = cn.CreateCommand();
         indexes.CommandText = @"
