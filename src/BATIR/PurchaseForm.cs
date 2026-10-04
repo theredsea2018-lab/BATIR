@@ -99,11 +99,29 @@ public class PurchaseForm : Form
             long outstanding=t-p;
             foreach(DataRow r in items.Rows){
                 long pid=Convert.ToInt64(r["ProductId"]),q=Convert.ToInt64(r["تعداد"]),price=Convert.ToInt64(r["فی"]),disc=Convert.ToInt64(r["تخفیف"]);
-                using var it=cn.CreateCommand();it.Transaction=tx;it.CommandText="INSERT INTO InvoiceItems(InvoiceId,ProductId,Quantity,UnitPrice,CostPrice,Discount) VALUES(@i,@p,@q,@u,@u,@d)";
-                it.Parameters.AddWithValue("@i",iid);it.Parameters.AddWithValue("@p",pid);it.Parameters.AddWithValue("@q",q);it.Parameters.AddWithValue("@u",price);it.Parameters.AddWithValue("@d",disc);it.ExecuteNonQuery();
-                using var st=cn.CreateCommand();st.Transaction=tx;st.CommandText="UPDATE Products SET Stock=Stock+@q,PurchasePrice=@price WHERE Id=@p";st.Parameters.AddWithValue("@q",q);st.Parameters.AddWithValue("@price",price);st.Parameters.AddWithValue("@p",pid);st.ExecuteNonQuery();
+                long effectiveUnitCost = q > 0 ? Math.Max(0, (q * price - disc) / q) : price;
+                using var current=cn.CreateCommand(); current.Transaction=tx;
+                current.CommandText="SELECT Stock,PurchasePrice FROM Products WHERE Id=@p";
+                current.Parameters.AddWithValue("@p",pid);
+                using var rd=current.ExecuteReader();
+                if(!rd.Read()) throw new InvalidOperationException("کالا در زمان ثبت خرید پیدا نشد.");
+                long oldStock=Convert.ToInt64(rd["Stock"]), oldCost=Convert.ToInt64(rd["PurchasePrice"]);
+                rd.Close();
+                long baseStock=Math.Max(0,oldStock);
+                long newStock=baseStock+q;
+                long weightedCost=newStock>0 ? ((baseStock*oldCost)+(q*effectiveUnitCost))/newStock : effectiveUnitCost;
+                using var it=cn.CreateCommand();it.Transaction=tx;it.CommandText="INSERT INTO InvoiceItems(InvoiceId,ProductId,Quantity,UnitPrice,CostPrice,Discount) VALUES(@i,@p,@q,@u,@cost,@d)";
+                it.Parameters.AddWithValue("@i",iid);it.Parameters.AddWithValue("@p",pid);it.Parameters.AddWithValue("@q",q);it.Parameters.AddWithValue("@u",price);it.Parameters.AddWithValue("@cost",effectiveUnitCost);it.Parameters.AddWithValue("@d",disc);it.ExecuteNonQuery();
+                using var st=cn.CreateCommand();st.Transaction=tx;st.CommandText="UPDATE Products SET Stock=Stock+@q,PurchasePrice=@cost WHERE Id=@p";st.Parameters.AddWithValue("@q",q);st.Parameters.AddWithValue("@cost",weightedCost);st.Parameters.AddWithValue("@p",pid);st.ExecuteNonQuery();
             }
             if(sid.HasValue&&outstanding>0){using var b=cn.CreateCommand();b.Transaction=tx;b.CommandText="UPDATE Suppliers SET Balance=Balance+@x WHERE Id=@id";b.Parameters.AddWithValue("@x",outstanding);b.Parameters.AddWithValue("@id",sid.Value);b.ExecuteNonQuery();}
+            if(sid.HasValue&&p>0){
+                using var cash=cn.CreateCommand(); cash.Transaction=tx;
+                cash.CommandText="INSERT INTO CashTransactions(DateText,Type,Amount,Description,UserName,SupplierId,PaymentMethod,ReferenceType,ReferenceId) VALUES(@d,'SupplierPayment',@a,@desc,'کاربر',@sid,'نقدی','Purchase',@rid)";
+                cash.Parameters.AddWithValue("@d",DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                cash.Parameters.AddWithValue("@a",p); cash.Parameters.AddWithValue("@desc","پرداخت فاکتور خرید "+no);
+                cash.Parameters.AddWithValue("@sid",sid.Value); cash.Parameters.AddWithValue("@rid",iid); cash.ExecuteNonQuery();
+            }
             using var au=cn.CreateCommand();au.Transaction=tx;au.CommandText="INSERT INTO AuditLog(DateText,UserName,Action,Entity,EntityId,Details) VALUES(@d,'کاربر','ثبت فاکتور خرید','Invoice',@id,@x)";au.Parameters.AddWithValue("@d",DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));au.Parameters.AddWithValue("@id",iid);au.Parameters.AddWithValue("@x",no+" | مبلغ: "+t+" | مانده: "+outstanding);au.ExecuteNonQuery();
             tx.Commit();MessageBox.Show("فاکتور خرید ثبت شد. شماره: "+no);items.Clear();supplier.Clear();paid.Value=0;UpdateTotal();
         }catch(Exception ex){MessageBox.Show("ثبت خرید انجام نشد و تغییرات ذخیره نشد.\n"+ex.Message);}
