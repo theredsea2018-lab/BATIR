@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS Checks(
  Id INTEGER PRIMARY KEY AUTOINCREMENT, CheckNo TEXT, Bank TEXT,
  Amount INTEGER NOT NULL, DueDate TEXT, Type TEXT NOT NULL,
  Status TEXT NOT NULL, PartyName TEXT, Notes TEXT,
- LedgerStatus TEXT);
+ CustomerId INTEGER, SupplierId INTEGER, LedgerStatus TEXT);
 CREATE TABLE IF NOT EXISTS CashTransactions(
  Id INTEGER PRIMARY KEY AUTOINCREMENT, DateText TEXT NOT NULL,
  Type TEXT NOT NULL, Amount INTEGER NOT NULL, Description TEXT, UserName TEXT,
@@ -119,6 +119,8 @@ INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) VALUES
         AddColumnIfMissing(cn, "SalesReturnItems", "OriginalInvoiceItemId", "INTEGER");
         AddColumnIfMissing(cn, "PurchaseReturnItems", "OriginalInvoiceItemId", "INTEGER");
         AddColumnIfMissing(cn, "PurchaseReturnItems", "CostPrice", "INTEGER NOT NULL DEFAULT 0");
+        AddColumnIfMissing(cn, "Checks", "CustomerId", "INTEGER");
+        AddColumnIfMissing(cn, "Checks", "SupplierId", "INTEGER");
         AddColumnIfMissing(cn, "Checks", "LedgerStatus", "TEXT");
 
         using var indexes = cn.CreateCommand();
