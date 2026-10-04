@@ -721,7 +721,7 @@ SELECT @invoice,@product,@qty,@price,PurchasePrice,@discount FROM Products WHERE
         {
             using var s = new SaveFileDialog { Filter = "BATIR Database (*.db)|*.db", FileName = "BATIR-Backup.db" };
             if (s.ShowDialog() != DialogResult.OK) return;
-            File.Copy(Database.FilePath, s.FileName, true);
+            Database.BackupTo(s.FileName);
             MessageBox.Show("پشتیبان‌گیری با موفقیت انجام شد.");
         }
         catch (Exception ex) { MessageBox.Show("خطا در پشتیبان‌گیری: " + ex.Message); }
