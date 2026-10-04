@@ -1,4 +1,6 @@
-using Microsoft.Data.Sqlite;\nusing System.Security.Cryptography;\nusing System.Text;
+using Microsoft.Data.Sqlite;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace BATIR;
 
@@ -9,7 +11,9 @@ public class SettingsForm : Form
     readonly ComboBox language = new();
     readonly ComboBox calendar = new();
     readonly CheckBox persianDigits = new() { Text = "نمایش اعداد فارسی در رابط کاربری", AutoSize = true };
-    readonly NumericUpDown autoLock = new() { Minimum = 0, Maximum = 1440 };\n    readonly TextBox autoLockPassword = new() { UseSystemPasswordChar = true };\n    readonly TextBox autoLockPasswordConfirm = new() { UseSystemPasswordChar = true };
+    readonly NumericUpDown autoLock = new() { Minimum = 0, Maximum = 1440 };
+    readonly TextBox autoLockPassword = new() { UseSystemPasswordChar = true };
+    readonly TextBox autoLockPasswordConfirm = new() { UseSystemPasswordChar = true };
     readonly CheckBox negativeStock = new() { Text = "اجازه فروش با موجودی منفی", AutoSize = true };
     readonly Button save = new() { Text = "ذخیره تنظیمات", Dock = DockStyle.Bottom, Height = 55 };
 
@@ -35,8 +39,10 @@ public class SettingsForm : Form
         Add(table, "زبان", language, 2);
         Add(table, "تقویم", calendar, 3);
         Add(table, "قفل خودکار (دقیقه، صفر=خاموش)", autoLock, 4);
-        table.Controls.Add(persianDigits, 1, 5);
-        table.Controls.Add(negativeStock, 1, 6);
+        Add(table, "رمز قفل خودکار (جدید)", autoLockPassword, 5);
+        Add(table, "تکرار رمز قفل", autoLockPasswordConfirm, 6);
+        table.Controls.Add(persianDigits, 1, 7);
+        table.Controls.Add(negativeStock, 1, 8);
         Controls.Add(table);
         Controls.Add(save);
 
@@ -68,13 +74,31 @@ public class SettingsForm : Form
                 case "AutoLockMinutes":
                     if (int.TryParse(value, out var minutes)) autoLock.Value = Math.Max(0, Math.Min(1440, minutes));
                     break;
-                case "NegativeStockAllowed": negativeStock.Checked = value.Equals("true", StringComparison.OrdinalIgnoreCase); break;\n                case "AutoLockPasswordHash": autoLockPassword.Text = ""; break;
+                case "NegativeStockAllowed": negativeStock.Checked = value.Equals("true", StringComparison.OrdinalIgnoreCase); break;
+                case "AutoLockPasswordHash": autoLockPassword.Text = ""; break;
             }
         }
     }
 
     void SaveSettings()
     {
+        var existingHashTable = Database.Query("SELECT Value FROM Settings WHERE Key='AutoLockPasswordHash' LIMIT 1");
+        var existingHash = existingHashTable.Rows.Count == 0 ? "" : Convert.ToString(existingHashTable.Rows[0]["Value"]) ?? "";
+        var passwordHash = existingHash;
+        if (autoLockPassword.Text.Length > 0)
+            passwordHash = HashPassword(autoLockPassword.Text);
+
+        if (autoLockPassword.Text.Length > 0 && autoLockPassword.Text != autoLockPasswordConfirm.Text)
+        {
+            MessageBox.Show("رمز قفل خودکار و تکرار آن یکسان نیست.");
+            return;
+        }
+        if ((int)autoLock.Value > 0 && string.IsNullOrWhiteSpace(passwordHash))
+        {
+            MessageBox.Show("برای فعال کردن قفل خودکار باید رمز تعیین کنید.");
+            return;
+        }
+
         var values = new Dictionary<string, string>
         {
             ["CurrencyName"] = currency.Text.Trim(),
@@ -83,7 +107,8 @@ public class SettingsForm : Form
             ["DateCalendar"] = calendar.SelectedIndex == 1 ? "Gregorian" : "Shamsi",
             ["PersianDigits"] = persianDigits.Checked ? "true" : "false",
             ["AutoLockMinutes"] = ((int)autoLock.Value).ToString(),
-            ["NegativeStockAllowed"] = negativeStock.Checked ? "true" : "false",\n            ["AutoLockPasswordHash"] = passwordHash
+            ["NegativeStockAllowed"] = negativeStock.Checked ? "true" : "false",
+            ["AutoLockPasswordHash"] = passwordHash
         };
 
         if (string.IsNullOrWhiteSpace(values["CurrencyName"]) || string.IsNullOrWhiteSpace(values["CurrencyCode"]))
