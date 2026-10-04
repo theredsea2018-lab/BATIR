@@ -82,6 +82,8 @@ FROM Checks ORDER BY Id DESC");
         {
             Database.Execute(@"INSERT INTO Checks(CheckNo,Bank,Amount,DueDate,Type,Status,PartyName,Notes,LedgerStatus)
 VALUES(@no,@bank,@amount,@due,@type,@state,@party,@notes,NULL)",P());
+            var created=Database.Query("SELECT Id FROM Checks WHERE CheckNo=@no ORDER BY Id DESC LIMIT 1",new SqliteParameter("@no",no.Text.Trim()));
+            if(created.Rows.Count>0) PostLedgerTransition(Convert.ToInt64(created.Rows[0]["Id"]), "", state.Text, (long)amount.Value, type.Text, party.Text.Trim(), no.Text.Trim());
         }
         else
         {
@@ -104,9 +106,8 @@ VALUES(@no,@bank,@amount,@due,@type,@state,@party,@notes,NULL)",P());
         using var cn=Database.Open();
         using var tx=cn.BeginTransaction();
         string? ledgerType=null; long signed=value;
-        if (before=="وصول شد" && after=="برگشت خورد") ledgerType=checkType=="دریافتی" ? "CheckReceiptReversal" : "CheckPaymentReversal";
+        if (before=="وصول شد" && after!="وصول شد") ledgerType=checkType=="دریافتی" ? "CheckReceiptReversal" : "CheckPaymentReversal";
         else if (after=="وصول شد") ledgerType=checkType=="دریافتی" ? "CheckClearedReceipt" : "CheckClearedPayment";
-        else if (before=="برگشت خورد" && after=="وصول شد") ledgerType=checkType=="دریافتی" ? "CheckReceiptReversal" : "CheckPaymentReversal";
         if (ledgerType!=null)
         {
             using var cmd=cn.CreateCommand(); cmd.Transaction=tx;
