@@ -250,7 +250,15 @@ public class MainForm : Form
 
         paymentMethod.Items.AddRange(new object[] { "نقدی", "کارتخوان", "انتقال بانکی", "اعتباری" });
         paymentMethod.SelectedIndex = 0;
-        invoicePaid.ValueChanged += (_, _) => UpdateInvoiceTotal();
+        invoicePaid.ValueChanged += (_, _) =>
+        {
+            UpdateInvoiceTotal();
+            if (invoiceItems.Rows.Count > 0) SaveDraftInvoice();
+        };
+        paymentMethod.SelectedIndexChanged += (_, _) =>
+        {
+            if (invoiceItems.Rows.Count > 0) SaveDraftInvoice();
+        };
         customerName.TextChanged += (_, _) => { if (invoiceItems.Rows.Count > 0) SaveDraftInvoice(); };
         invoiceNote.TextChanged += (_, _) => { if (invoiceItems.Rows.Count > 0) SaveDraftInvoice(); };
 
