@@ -333,7 +333,8 @@ CreditLimit=@limit,Notes=@notes WHERE Id=@id",
         cash.CommandText = @"INSERT INTO CashTransactions(DateText,Type,Amount,Description,UserName,CustomerId,PaymentMethod,ReferenceType)
 VALUES(@date,'CustomerReceipt',@amount,@desc,'کاربر',@customerId,'نقدی','CustomerReceipt')";
         cash.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-        cash.Parameters.AddWithValue("@amount", amount);\n                cash.Parameters.AddWithValue("@customerId", id);
+        cash.Parameters.AddWithValue("@amount", amount);
+        cash.Parameters.AddWithValue("@customerId", editingCustomerId);
         cash.Parameters.AddWithValue("@desc", "دریافت از مشتری: " + customerName.Text.Trim());
         cash.ExecuteNonQuery();
 
