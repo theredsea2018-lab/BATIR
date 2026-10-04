@@ -79,8 +79,32 @@ CREATE TABLE IF NOT EXISTS DraftInvoiceItems(
  Id INTEGER PRIMARY KEY AUTOINCREMENT, ProductId INTEGER NOT NULL,
  ProductName TEXT NOT NULL, Quantity INTEGER NOT NULL,
  UnitPrice INTEGER NOT NULL, Discount INTEGER NOT NULL DEFAULT 0,
- FOREIGN KEY(ProductId) REFERENCES Products(Id));";
+ FOREIGN KEY(ProductId) REFERENCES Products(Id));
+CREATE TABLE IF NOT EXISTS Settings(
+ Key TEXT PRIMARY KEY,
+ Value TEXT NOT NULL,
+ UpdatedAt TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS IX_Products_Barcode ON Products(Barcode);
+CREATE INDEX IF NOT EXISTS IX_Products_Name ON Products(Name);
+CREATE INDEX IF NOT EXISTS IX_Invoices_InvoiceNo ON Invoices(InvoiceNo);
+CREATE INDEX IF NOT EXISTS IX_Invoices_DateText ON Invoices(DateText);
+CREATE INDEX IF NOT EXISTS IX_InvoiceItems_InvoiceId ON InvoiceItems(InvoiceId);
+CREATE INDEX IF NOT EXISTS IX_CashTransactions_DateText ON CashTransactions(DateText);
+CREATE INDEX IF NOT EXISTS IX_AuditLog_DateText ON AuditLog(DateText);";
         cmd.ExecuteNonQuery();
+
+        // Defaults are inserted without overwriting values the user may have changed.
+        using var seed = cn.CreateCommand();
+        seed.CommandText = @"
+INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) VALUES
+('CurrencyName','ریال',datetime('now')),
+('CurrencyCode','IRR',datetime('now')),
+('Language','fa-IR',datetime('now')),
+('DateCalendar','Shamsi',datetime('now')),
+('PersianDigits','true',datetime('now')),
+('AutoLockMinutes','0',datetime('now')),
+('NegativeStockAllowed','false',datetime('now'));";
+        seed.ExecuteNonQuery();
     }
 
     public static DataTable Query(string sql, params SqliteParameter[] parameters)
