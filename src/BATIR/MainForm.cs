@@ -24,6 +24,9 @@ public class MainForm : Form
     readonly NumericUpDown invoicePaid = new() { Minimum = 0, Maximum = 999999999999 };
     readonly ComboBox paymentMethod = new();
     readonly Label status = new();
+    readonly Timer autoLockTimer = new() { Interval = 1000 };
+    DateTime lastActivity = DateTime.Now;
+    bool lockDialogOpen = false;
     readonly DataTable invoiceItems = new();
     readonly DataGridView customerGrid = new();
     readonly TextBox customerSearch = new();
@@ -43,6 +46,45 @@ public class MainForm : Form
         Build();
         LoadProducts();
         LoadDraftInvoice();
+        HookActivityTracking();
+        autoLockTimer.Tick += (_, _) => CheckAutoLock();
+        autoLockTimer.Start();
+    }
+
+    void HookActivityTracking()
+    {
+        void attach(Control control)
+        {
+            control.MouseMove += (_, _) => lastActivity = DateTime.Now;
+            control.KeyDown += (_, _) => lastActivity = DateTime.Now;
+            control.MouseClick += (_, _) => lastActivity = DateTime.Now;
+            foreach (Control child in control.Controls) attach(child);
+        }
+        attach(this);
+    }
+
+    void CheckAutoLock()
+    {
+        if (lockDialogOpen || !Visible) return;
+        var setting = Database.Query("SELECT Value FROM Settings WHERE Key='AutoLockMinutes' LIMIT 1");
+        if (setting.Rows.Count == 0 || !int.TryParse(Convert.ToString(setting.Rows[0]["Value"]), out var minutes) || minutes <= 0) return;
+        if ((DateTime.Now - lastActivity).TotalMinutes < minutes) return;
+        lockDialogOpen = true;
+        try
+        {
+            using var lockForm = new Form { Text = "BATIR | قفل خودکار", Width = 390, Height = 180, StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false, RightToLeft = RightToLeft.Yes, RightToLeftLayout = true };
+            var label = new Label { Text = "برای ادامه، دکمه بازگشت به برنامه را بزنید.", Dock = DockStyle.Top, Height = 55, TextAlign = ContentAlignment.MiddleCenter };
+            var button = new Button { Text = "بازگشت به برنامه", Dock = DockStyle.Bottom, Height = 50 };
+            button.Click += (_, _) => lockForm.Close();
+            lockForm.Controls.Add(label); lockForm.Controls.Add(button);
+            lockForm.ShowDialog(this);
+        }
+        finally
+        {
+            lastActivity = DateTime.Now;
+            lockDialogOpen = false;
+        }
     }
 
     void Build()
