@@ -82,6 +82,11 @@ CREATE TABLE IF NOT EXISTS DraftInvoiceItems(
  ProductName TEXT NOT NULL, Quantity INTEGER NOT NULL,
  UnitPrice INTEGER NOT NULL, Discount INTEGER NOT NULL DEFAULT 0,
  FOREIGN KEY(ProductId) REFERENCES Products(Id));
+CREATE TABLE IF NOT EXISTS InventoryAdjustments(
+ Id INTEGER PRIMARY KEY AUTOINCREMENT, DateText TEXT NOT NULL, ProductId INTEGER NOT NULL,
+ BeforeStock INTEGER NOT NULL, CountedStock INTEGER NOT NULL, Difference INTEGER NOT NULL,
+ Note TEXT, UserName TEXT,
+ FOREIGN KEY(ProductId) REFERENCES Products(Id));
 CREATE TABLE IF NOT EXISTS Settings(
  Key TEXT PRIMARY KEY,
  Value TEXT NOT NULL,
@@ -93,6 +98,8 @@ CREATE INDEX IF NOT EXISTS IX_Invoices_DateText ON Invoices(DateText);
 CREATE INDEX IF NOT EXISTS IX_InvoiceItems_InvoiceId ON InvoiceItems(InvoiceId);
 CREATE INDEX IF NOT EXISTS IX_CashTransactions_DateText ON CashTransactions(DateText);
 CREATE INDEX IF NOT EXISTS IX_AuditLog_DateText ON AuditLog(DateText);
+CREATE INDEX IF NOT EXISTS IX_InventoryAdjustments_DateText ON InventoryAdjustments(DateText);
+CREATE INDEX IF NOT EXISTS IX_InventoryAdjustments_ProductId ON InventoryAdjustments(ProductId);
 ";
         cmd.ExecuteNonQuery();
 
