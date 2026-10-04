@@ -492,6 +492,12 @@ VALUES(@code,@barcode,@name,@brand,@category,@purchase,@sale,@stock,@date)",
         LoadProducts();
     }
 
+    bool NegativeStockAllowed()
+    {
+        var dt = Database.Query("SELECT Value FROM Settings WHERE Key='NegativeStockAllowed' LIMIT 1");
+        return dt.Rows.Count > 0 && string.Equals(Convert.ToString(dt.Rows[0]["Value"]), "true", StringComparison.OrdinalIgnoreCase);
+    }
+
     void AddInvoiceItem(object? sender, EventArgs e)
     {
         var q = invoiceSearch.Text.Trim();
@@ -509,6 +515,11 @@ WHERE Active=1 AND (Barcode=@q OR Name LIKE @like) ORDER BY CASE WHEN Barcode=@q
         long available = Convert.ToInt64(dt.Rows[0]["Stock"]);
         long qty = (long)invoiceQty.Value;
         if (qty > available) {
+            if (!NegativeStockAllowed())
+            {
+                MessageBox.Show("موجودی کالا کافی نیست و فروش با موجودی منفی در تنظیمات غیرفعال است.", "هشدار موجودی", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
             if (MessageBox.Show("موجودی کالا کمتر از تعداد درخواستی است. ادامه داده شود؟", "هشدار موجودی",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
         }
@@ -703,6 +714,17 @@ VALUES(@no,'Sale',@customer,'کاربر',@date,@total,@paid,@notes); SELECT last
                 long qty = Convert.ToInt64(row["تعداد"]);
                 long unitPrice = Convert.ToInt64(row["فی"]);
                 long discount = Convert.ToInt64(row["تخفیف"]);
+
+                if (!NegativeStockAllowed())
+                {
+                    using var stockCheck = cn.CreateCommand();
+                    stockCheck.Transaction = tx;
+                    stockCheck.CommandText = "SELECT Stock FROM Products WHERE Id=@product";
+                    stockCheck.Parameters.AddWithValue("@product", productId);
+                    var currentStock = Convert.ToInt64(stockCheck.ExecuteScalar() ?? 0);
+                    if (qty > currentStock)
+                        throw new InvalidOperationException("موجودی یکی از کالاها کافی نیست و فروش با موجودی منفی غیرفعال است.");
+                }
 
                 using var item = cn.CreateCommand();
                 item.Transaction = tx;
