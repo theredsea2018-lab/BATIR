@@ -52,6 +52,7 @@ public class MainForm : Form
         tabs.TabPages.Add(BuildInvoices());
         tabs.TabPages.Add(BuildCustomers());
         tabs.TabPages.Add(BuildChecksPage());
+        tabs.TabPages.Add(new TabPage("برگشت از فروش"));
         tabs.TabPages.Add(SimplePage("تنظیمات", "ریال | فارسی | پایگاه داده SQLite"));
 
         var top = new Panel { Dock = DockStyle.Top, Height = 55 };
