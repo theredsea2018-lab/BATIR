@@ -9,6 +9,7 @@ public class SalesReturnsForm : Form
     readonly DataGridView grid = new();
     readonly Button load = new() { Text = "بارگذاری فاکتور" };
     readonly Button ret = new() { Text = "ثبت برگشت اقلام انتخابی", Dock = DockStyle.Fill };
+    readonly ComboBox refundMethod = new();
     DataTable items = new();
 
     public SalesReturnsForm()
@@ -19,6 +20,11 @@ public class SalesReturnsForm : Form
         invoiceNo.Dock = DockStyle.Fill; top.Controls.Add(invoiceNo);
         load.Dock = DockStyle.Right; load.Width = 150; top.Controls.Add(load);
         load.Click += (_, _) => LoadInvoice();
+        refundMethod.DropDownStyle = ComboBoxStyle.DropDownList;
+        refundMethod.Items.AddRange(new object[] { "نقدی", "کارتخوان", "انتقال بانکی", "چک" });
+        refundMethod.SelectedIndex = 0;
+        refundMethod.Dock = DockStyle.Right; refundMethod.Width = 150;
+        top.Controls.Add(refundMethod);
         ret.Dock = DockStyle.Bottom; ret.Height = 55; ret.Enabled = false;
         ret.Click += (_, _) => ReturnInvoice();
         grid.Dock = DockStyle.Fill; grid.AllowUserToAddRows = false;
@@ -203,11 +209,12 @@ WHERE Id=@id";
                 refund.Transaction = tx;
                 refund.CommandText = @"
 INSERT INTO CashTransactions(DateText,Type,Amount,Description,UserName,CustomerId,PaymentMethod,ReferenceType,ReferenceId)
-VALUES(@date,'SalesReturnRefund',@amount,@desc,'کاربر',@customer,'نقدی','SalesReturn',@rid)";
+VALUES(@date,'SalesReturnRefund',@amount,@desc,'کاربر',@customer,@method,'SalesReturn',@rid)";
                 refund.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
                 refund.Parameters.AddWithValue("@amount", refundAmount);
                 refund.Parameters.AddWithValue("@desc", "بازپرداخت برگشت فروش | فاکتور " + originalId);
                 refund.Parameters.AddWithValue("@customer", customerId > 0 ? (object)customerId : DBNull.Value);
+                refund.Parameters.AddWithValue("@method", refundMethod.SelectedItem?.ToString() ?? "نقدی");
                 refund.Parameters.AddWithValue("@rid", returnId);
                 refund.ExecuteNonQuery();
             }
@@ -232,8 +239,7 @@ VALUES(@d,'کاربر','برگشت از فروش','SalesReturn',@id,@details)";
         }
         catch (Exception ex)
         {
-            MessageBox.Show("ثبت برگشت انجام نشد و تغییری ذخیره نشد.
-" + ex.Message,
+            MessageBox.Show("ثبت برگشت انجام نشد و تغییری ذخیره نشد.\n" + ex.Message,
                 "خطا", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
