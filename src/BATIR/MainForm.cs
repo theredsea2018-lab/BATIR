@@ -72,6 +72,11 @@ public class MainForm : Form
         statementButton.Click += (_, _) => new CustomerStatementForm().ShowDialog(this);
         statementPage.Controls.Add(statementButton);
         tabs.TabPages.Add(statementPage);
+        var supplierStatementPage = new TabPage("دفتر حساب تأمین‌کنندگان");
+        var supplierStatementButton = new Button { Text = "باز کردن دفتر حساب تأمین‌کنندگان", Dock = DockStyle.Top, Height = 70 };
+        supplierStatementButton.Click += (_, _) => new SupplierStatementForm().ShowDialog(this);
+        supplierStatementPage.Controls.Add(supplierStatementButton);
+        tabs.TabPages.Add(supplierStatementPage);
         var reportPage = new TabPage("گزارش موجودی و سود");
         var reportButton = new Button { Text = "باز کردن گزارش موجودی و سود", Dock = DockStyle.Top, Height = 70 };
         reportButton.Click += (_, _) => new InventoryReportForm().ShowDialog(this);
