@@ -189,9 +189,13 @@ public class MainForm : Form
         var top = new Panel { Dock = DockStyle.Top, Height = 55 };
         var title = new Label { Text = "  باتیر | حسابداری و انبارداری", Dock = DockStyle.Left, Width = 350,
             Font = new Font("Tahoma", 14, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft };
+        var restore = new Button { Text = "بازیابی پشتیبان", Dock = DockStyle.Right, Width = 120 };
+        restore.Click += (_, _) => RestoreBackup();
+        var verify = new Button { Text = "بررسی پشتیبان", Dock = DockStyle.Right, Width = 120 };
+        verify.Click += (_, _) => VerifyBackup();
         var backup = new Button { Text = "پشتیبان‌گیری", Dock = DockStyle.Right, Width = 120 };
         backup.Click += (_, _) => Backup();
-        top.Controls.Add(backup); top.Controls.Add(title);
+        top.Controls.Add(restore); top.Controls.Add(verify); top.Controls.Add(backup); top.Controls.Add(title);
 
         status.Dock = DockStyle.Bottom; status.Height = 28; status.Text = "آماده | ریال";
         Controls.Add(tabs); Controls.Add(status); Controls.Add(top);
@@ -823,6 +827,53 @@ SELECT @invoice,@product,@qty,@price,PurchasePrice,@discount FROM Products WHERE
         invoiceQty.Value = 1;
         invoiceDiscount.Value = 0;
         UpdateInvoiceTotal();
+    }
+
+    void VerifyBackup()
+    {
+        try
+        {
+            using var s = new OpenFileDialog { Filter = "BATIR Database (*.db)|*.db", Title = "انتخاب فایل پشتیبان برای بررسی" };
+            if (s.ShowDialog() != DialogResult.OK) return;
+            var valid = Database.VerifyBackup(s.FileName);
+            MessageBox.Show(valid ? "پشتیبان سالم و قابل استفاده است." : "پشتیبان معتبر نیست.",
+                "بررسی پشتیبان", MessageBoxButtons.OK,
+                valid ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("بررسی پشتیبان انجام نشد.\n" + ex.Message, "خطا",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    void RestoreBackup()
+    {
+        try
+        {
+            using var s = new OpenFileDialog { Filter = "BATIR Database (*.db)|*.db", Title = "انتخاب فایل پشتیبان برای بازیابی" };
+            if (s.ShowDialog() != DialogResult.OK) return;
+            if (!Database.VerifyBackup(s.FileName))
+            {
+                MessageBox.Show("این فایل پشتیبان معتبر نیست و بازیابی انجام نشد.", "خطا",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            if (MessageBox.Show("قبل از بازیابی، از اطلاعات فعلی یک نسخه ایمن گرفته می‌شود. ادامه می‌دهید؟",
+                "تأیید بازیابی", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+
+            var safetyPath = Database.RestoreFrom(s.FileName);
+            MessageBox.Show("بازیابی با موفقیت انجام شد.\nنسخه ایمن اطلاعات قبلی نیز در این مسیر ذخیره شد:\n" + safetyPath +
+                "\nبرای بارگذاری کامل اطلاعات بازیابی‌شده، برنامه را ببندید و دوباره اجرا کنید.",
+                "BATIR", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            Application.Restart();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("بازیابی انجام نشد و نسخه فعلی حفظ شد.\n" + ex.Message, "خطا",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
     }
 
     void Backup()
