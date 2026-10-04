@@ -57,6 +57,11 @@ public class MainForm : Form
         returnsButton.Click += (_, _) => { var form = Activator.CreateInstance(Type.GetType("BATIR." + "SalesReturns" + "Form")!) as Form; if (form != null) form.ShowDialog(this); };
         returnsPage.Controls.Add(returnsButton);
         tabs.TabPages.Add(returnsPage);
+        var suppliersPage = new TabPage("تأمین‌کنندگان");
+        var suppliersButton = new Button { Text = "باز کردن مدیریت تأمین‌کنندگان", Dock = DockStyle.Top, Height = 70 };
+        suppliersButton.Click += (_, _) => new SuppliersForm().ShowDialog(this);
+        suppliersPage.Controls.Add(suppliersButton);
+        tabs.TabPages.Add(suppliersPage);
         tabs.TabPages.Add(SimplePage("تنظیمات", "ریال | فارسی | پایگاه داده SQLite"));
 
         var top = new Panel { Dock = DockStyle.Top, Height = 55 };
