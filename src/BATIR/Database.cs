@@ -92,9 +92,7 @@ CREATE INDEX IF NOT EXISTS IX_Invoices_DateText ON Invoices(DateText);
 CREATE INDEX IF NOT EXISTS IX_InvoiceItems_InvoiceId ON InvoiceItems(InvoiceId);
 CREATE INDEX IF NOT EXISTS IX_CashTransactions_DateText ON CashTransactions(DateText);
 CREATE INDEX IF NOT EXISTS IX_AuditLog_DateText ON AuditLog(DateText);
-CREATE INDEX IF NOT EXISTS IX_CashTransactions_Type ON CashTransactions(Type);
-CREATE INDEX IF NOT EXISTS IX_CashTransactions_CustomerId ON CashTransactions(CustomerId);
-CREATE INDEX IF NOT EXISTS IX_CashTransactions_SupplierId ON CashTransactions(SupplierId);";
+";
         cmd.ExecuteNonQuery();
 
         // Defaults are inserted without overwriting values the user may have changed.
@@ -116,6 +114,13 @@ INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) VALUES
         AddColumnIfMissing(cn, "CashTransactions", "PaymentMethod", "TEXT");
         AddColumnIfMissing(cn, "CashTransactions", "ReferenceType", "TEXT");
         AddColumnIfMissing(cn, "CashTransactions", "ReferenceId", "INTEGER");
+
+        using var indexes = cn.CreateCommand();
+        indexes.CommandText = @"
+CREATE INDEX IF NOT EXISTS IX_CashTransactions_Type ON CashTransactions(Type);
+CREATE INDEX IF NOT EXISTS IX_CashTransactions_CustomerId ON CashTransactions(CustomerId);
+CREATE INDEX IF NOT EXISTS IX_CashTransactions_SupplierId ON CashTransactions(SupplierId);";
+        indexes.ExecuteNonQuery();
     }
 
     static void AddColumnIfMissing(SqliteConnection cn, string table, string column, string definition)
