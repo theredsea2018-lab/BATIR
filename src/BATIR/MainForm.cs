@@ -52,7 +52,11 @@ public class MainForm : Form
         tabs.TabPages.Add(BuildInvoices());
         tabs.TabPages.Add(BuildCustomers());
         tabs.TabPages.Add(BuildChecksPage());
-        tabs.TabPages.Add(new TabPage("برگشت از فروش"));
+        var returnsPage = new TabPage("برگشت از فروش");
+        var returnsButton = new Button { Text = "باز کردن", Dock = DockStyle.Top, Height = 70 };
+        returnsButton.Click += (_, _) => Activator.CreateInstance(Type.GetType("BATIR." + "SalesReturns" + "Form")!) is Form form ? form.ShowDialog(this) : (object)null!;
+        returnsPage.Controls.Add(returnsButton);
+        tabs.TabPages.Add(returnsPage);
         tabs.TabPages.Add(SimplePage("تنظیمات", "ریال | فارسی | پایگاه داده SQLite"));
 
         var top = new Panel { Dock = DockStyle.Top, Height = 55 };
