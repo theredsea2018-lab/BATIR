@@ -62,7 +62,8 @@ public class ChecksForm : Form
     void LoadChecks()
     {
         grid.DataSource=Database.Query(@"SELECT Id,CheckNo AS [شماره],Bank AS [بانک],Amount AS [مبلغ],
-DueDate AS [سررسید],Type AS [نوع],Status AS [وضعیت],PartyName AS [طرف حساب],Notes AS [توضیحات]
+DueDate AS [سررسید],Type AS [نوع],Status AS [وضعیت],PartyName AS [طرف حساب],
+CASE WHEN CustomerId IS NOT NULL THEN "مشتری" WHEN SupplierId IS NOT NULL THEN "تأمین‌کننده" ELSE "" END AS [حساب مرتبط],Notes AS [توضیحات]
 FROM Checks ORDER BY Id DESC");
     }
     void Edit(int row)
@@ -78,21 +79,50 @@ FROM Checks ORDER BY Id DESC");
     void Save()
     {
         if(amount.Value<=0){MessageBox.Show("مبلغ چک را وارد کنید.");return;}
+        var partyName=party.Text.Trim();
+        long customerId=0, supplierId=0;
+        if (partyName != "")
+        {
+            if (type.Text=="دریافتی")
+                customerId=FindPartyId("Customers",partyName);
+            else
+                supplierId=FindPartyId("Suppliers",partyName);
+
+            if (customerId==0 && supplierId==0)
+                MessageBox.Show("طرف حساب در فهرست مشتری/تأمین‌کننده پیدا نشد؛ چک بدون لینک حساب ذخیره می‌شود.");
+        }
+
         if(editId==0)
         {
-            Database.Execute(@"INSERT INTO Checks(CheckNo,Bank,Amount,DueDate,Type,Status,PartyName,Notes,LedgerStatus)
-VALUES(@no,@bank,@amount,@due,@type,@state,@party,@notes,NULL)",P());
+            Database.Execute(@"INSERT INTO Checks(CheckNo,Bank,Amount,DueDate,Type,Status,PartyName,Notes,CustomerId,SupplierId,LedgerStatus)
+VALUES(@no,@bank,@amount,@due,@type,@state,@party,@notes,@customer,@supplier,NULL)",
+                P(new SqliteParameter("@customer",customerId>0?(object)customerId:DBNull.Value),
+                  new SqliteParameter("@supplier",supplierId>0?(object)supplierId:DBNull.Value)));
             var created=Database.Query("SELECT Id FROM Checks WHERE CheckNo=@no ORDER BY Id DESC LIMIT 1",new SqliteParameter("@no",no.Text.Trim()));
-            if(created.Rows.Count>0) PostLedgerTransition(Convert.ToInt64(created.Rows[0]["Id"]), "", state.Text, (long)amount.Value, type.Text, party.Text.Trim(), no.Text.Trim());
+            if(created.Rows.Count>0) PostLedgerTransition(Convert.ToInt64(created.Rows[0]["Id"]), "", state.Text, (long)amount.Value, type.Text, partyName, no.Text.Trim(), customerId, supplierId);
         }
         else
         {
-            var parameters=P(new SqliteParameter("@id",editId));
-            Database.Execute(@"UPDATE Checks SET CheckNo=@no,Bank=@bank,Amount=@amount,DueDate=@due,Type=@type,Status=@state,PartyName=@party,Notes=@notes WHERE Id=@id",parameters);
-            PostLedgerTransition(editId, oldStatus, state.Text, (long)amount.Value, type.Text, party.Text.Trim(), no.Text.Trim());
+            var parameters=P(
+                new SqliteParameter("@id",editId),
+                new SqliteParameter("@customer",customerId>0?(object)customerId:DBNull.Value),
+                new SqliteParameter("@supplier",supplierId>0?(object)supplierId:DBNull.Value));
+            Database.Execute(@"UPDATE Checks SET CheckNo=@no,Bank=@bank,Amount=@amount,DueDate=@due,Type=@type,Status=@state,PartyName=@party,Notes=@notes,CustomerId=@customer,SupplierId=@supplier WHERE Id=@id",parameters);
+            PostLedgerTransition(editId, oldStatus, state.Text, (long)amount.Value, type.Text, partyName, no.Text.Trim(), customerId, supplierId);
         }
         Clear(); LoadChecks();
     }
+
+    long FindPartyId(string table,string name)
+    {
+        using var cn=Database.Open();
+        using var cmd=cn.CreateCommand();
+        cmd.CommandText=$"SELECT Id FROM {table} WHERE Name=@name COLLATE NOCASE ORDER BY Id LIMIT 1";
+        cmd.Parameters.AddWithValue("@name",name);
+        var value=cmd.ExecuteScalar();
+        return value==null || value==DBNull.Value ? 0 : Convert.ToInt64(value);
+    }
+
     SqliteParameter[] P(params SqliteParameter[] extra)
     {
         var a=new List<SqliteParameter>{
@@ -100,7 +130,7 @@ VALUES(@no,@bank,@amount,@due,@type,@state,@party,@notes,NULL)",P());
             new("@due",due.Text.Trim()),new("@type",type.Text),new("@state",state.Text),new("@party",party.Text.Trim()),new("@notes",notes.Text.Trim())};
         a.AddRange(extra); return a.ToArray();
     }
-    void PostLedgerTransition(long id, string before, string after, long value, string checkType, string partyName, string checkNo)
+    void PostLedgerTransition(long id, string before, string after, long value, string checkType, string partyName, string checkNo, long customerId, long supplierId)
     {
         if (before == after) return;
         using var cn=Database.Open();
@@ -111,11 +141,13 @@ VALUES(@no,@bank,@amount,@due,@type,@state,@party,@notes,NULL)",P());
         if (ledgerType!=null)
         {
             using var cmd=cn.CreateCommand(); cmd.Transaction=tx;
-            cmd.CommandText=@"INSERT INTO CashTransactions(DateText,Type,Amount,Description,UserName,PaymentMethod,ReferenceType,ReferenceId)
-VALUES(@d,@t,@a,@desc,'کاربر','چک','Check',@id)";
+            cmd.CommandText=@"INSERT INTO CashTransactions(DateText,Type,Amount,Description,UserName,CustomerId,SupplierId,PaymentMethod,ReferenceType,ReferenceId)
+VALUES(@d,@t,@a,@desc,'کاربر',@customer,@supplier,'چک','Check',@id)";
             cmd.Parameters.AddWithValue("@d",DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             cmd.Parameters.AddWithValue("@t",ledgerType); cmd.Parameters.AddWithValue("@a",value);
             cmd.Parameters.AddWithValue("@desc","چک "+checkNo+" | "+partyName);
+            cmd.Parameters.AddWithValue("@customer",customerId>0?(object)customerId:DBNull.Value);
+            cmd.Parameters.AddWithValue("@supplier",supplierId>0?(object)supplierId:DBNull.Value);
             cmd.Parameters.AddWithValue("@id",id); cmd.ExecuteNonQuery();
         }
         using var mark=cn.CreateCommand(); mark.Transaction=tx;
