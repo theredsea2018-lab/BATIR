@@ -647,6 +647,22 @@ VALUES(1,@customer,@notes,@date)";
             header.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             header.ExecuteNonQuery();
 
+            if (paid > 0)
+            {
+                using var payment = cn.CreateCommand();
+                payment.Transaction = tx;
+                payment.CommandText = @"INSERT INTO CashTransactions
+(DateText,Type,Amount,Description,UserName,CustomerId,PaymentMethod,ReferenceType,ReferenceId)
+VALUES(@date,'SalePayment',@amount,@description,'کاربر',@customer,@method,'SaleInvoice',@reference)";
+                payment.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                payment.Parameters.AddWithValue("@amount", paid);
+                payment.Parameters.AddWithValue("@description", "دریافت بابت فاکتور فروش " + invoiceNo);
+                payment.Parameters.AddWithValue("@customer", (object?)customerId ?? DBNull.Value);
+                payment.Parameters.AddWithValue("@method", paymentMethod.SelectedItem?.ToString() ?? "نقدی");
+                payment.Parameters.AddWithValue("@reference", invoiceId);
+                payment.ExecuteNonQuery();
+            }
+
             foreach (DataRow row in invoiceItems.Rows)
             {
                 using var item = cn.CreateCommand();
