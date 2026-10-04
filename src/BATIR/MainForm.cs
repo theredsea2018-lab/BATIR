@@ -92,7 +92,11 @@ public class MainForm : Form
         reportButton.Click += (_, _) => new InventoryReportForm().ShowDialog(this);
         reportPage.Controls.Add(reportButton);
         tabs.TabPages.Add(reportPage);
-        tabs.TabPages.Add(SimplePage("تنظیمات", "ریال | فارسی | پایگاه داده SQLite"));
+        var settingsPage = new TabPage("تنظیمات");
+        var settingsButton = new Button { Text = "باز کردن تنظیمات BATIR", Dock = DockStyle.Top, Height = 70 };
+        settingsButton.Click += (_, _) => new SettingsForm().ShowDialog(this);
+        settingsPage.Controls.Add(settingsButton);
+        tabs.TabPages.Add(settingsPage);
 
         var top = new Panel { Dock = DockStyle.Top, Height = 55 };
         var title = new Label { Text = "  باتیر | حسابداری و انبارداری", Dock = DockStyle.Left, Width = 350,
