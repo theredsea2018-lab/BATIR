@@ -183,14 +183,20 @@ CREATE INDEX IF NOT EXISTS IX_CashTransactions_SupplierId ON CashTransactions(Su
         if (string.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(FilePath), StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("فایل پشتیبان باید با فایل پایگاه داده فعلی متفاوت باشد.");
 
-        var safetyPath = Path.Combine(Folder, "BATIR-before-restore-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".db");
+        var safetyPath = Path.Combine(Folder, "BATIR-before-restore-" + DateTime.Now.ToString("yyyyMMdd-HHmmss-fff") + "-" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".db");
+        using (var checkpoint = Open())
+        using (var checkpointCommand = checkpoint.CreateCommand())
+        {
+            checkpointCommand.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+            checkpointCommand.ExecuteNonQuery();
+        }
         BackupTo(safetyPath);
 
         var tempPath = FilePath + ".restore-" + Guid.NewGuid().ToString("N") + ".db";
         try
         {
-            using (var source = new SqliteConnection("Data Source=" + sourcePath + ";"))
-            using (var target = new SqliteConnection("Data Source=" + tempPath + ";"))
+            using (var source = new SqliteConnection("Data Source=" + sourcePath + ";Cache=Shared"))
+            using (var target = new SqliteConnection("Data Source=" + tempPath + ";Cache=Shared"))
             {
                 source.Open();
                 target.Open();
