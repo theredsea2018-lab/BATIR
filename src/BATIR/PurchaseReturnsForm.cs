@@ -9,6 +9,7 @@ public class PurchaseReturnsForm : Form
     readonly DataGridView grid = new();
     readonly Button load = new() { Text = "بارگذاری فاکتور" };
     readonly Button ret = new() { Text = "ثبت برگشت اقلام انتخابی", Dock = DockStyle.Fill };
+    readonly ComboBox refundMethod = new();
     DataTable items = new();
 
     public PurchaseReturnsForm()
@@ -19,6 +20,11 @@ public class PurchaseReturnsForm : Form
         invoiceNo.Dock = DockStyle.Fill; top.Controls.Add(invoiceNo);
         load.Dock = DockStyle.Right; load.Width = 150; top.Controls.Add(load);
         load.Click += (_, _) => LoadInvoice();
+        refundMethod.DropDownStyle = ComboBoxStyle.DropDownList;
+        refundMethod.Items.AddRange(new object[] { "نقدی", "کارتخوان", "انتقال بانکی", "چک" });
+        refundMethod.SelectedIndex = 0;
+        refundMethod.Dock = DockStyle.Right; refundMethod.Width = 150;
+        top.Controls.Add(refundMethod);
         ret.Dock = DockStyle.Bottom; ret.Height = 55; ret.Enabled = false;
         ret.Click += (_, _) => ReturnInvoice();
         grid.Dock = DockStyle.Fill; grid.AllowUserToAddRows = false;
@@ -234,11 +240,12 @@ WHERE ReferenceType='PurchaseReturn' AND ReferenceId IN
                 refund.Transaction = tx;
                 refund.CommandText = @"INSERT INTO CashTransactions
 (DateText,Type,Amount,Description,UserName,SupplierId,PaymentMethod,ReferenceType,ReferenceId)
-VALUES(@date,'PurchaseReturnRefund',@amount,@desc,'کاربر',@supplier,'نقدی','PurchaseReturn',@rid)";
+VALUES(@date,'PurchaseReturnRefund',@amount,@desc,'کاربر',@supplier,@method,'PurchaseReturn',@rid)";
                 refund.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
                 refund.Parameters.AddWithValue("@amount", refundAmount);
                 refund.Parameters.AddWithValue("@desc", "بازپرداخت برگشت خرید | فاکتور " + originalId);
                 refund.Parameters.AddWithValue("@supplier", supplierId);
+                refund.Parameters.AddWithValue("@method", refundMethod.SelectedItem?.ToString() ?? "نقدی");
                 refund.Parameters.AddWithValue("@rid", returnId);
                 refund.ExecuteNonQuery();
             }
