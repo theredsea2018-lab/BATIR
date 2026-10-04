@@ -62,6 +62,11 @@ public class MainForm : Form
         suppliersButton.Click += (_, _) => new SuppliersForm().ShowDialog(this);
         suppliersPage.Controls.Add(suppliersButton);
         tabs.TabPages.Add(suppliersPage);
+        var reportPage = new TabPage("گزارش موجودی و سود");
+        var reportButton = new Button { Text = "باز کردن گزارش موجودی و سود", Dock = DockStyle.Top, Height = 70 };
+        reportButton.Click += (_, _) => new InventoryReportForm().ShowDialog(this);
+        reportPage.Controls.Add(reportButton);
+        tabs.TabPages.Add(reportPage);
         tabs.TabPages.Add(SimplePage("تنظیمات", "ریال | فارسی | پایگاه داده SQLite"));
 
         var top = new Panel { Dock = DockStyle.Top, Height = 55 };
