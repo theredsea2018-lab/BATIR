@@ -68,8 +68,8 @@ CREATE TABLE IF NOT EXISTS SalesReturnItems(
  Quantity INTEGER NOT NULL, UnitPrice INTEGER NOT NULL, Discount INTEGER NOT NULL DEFAULT 0,
  FOREIGN KEY(ReturnId) REFERENCES SalesReturns(Id) ON DELETE CASCADE);
 CREATE TABLE IF NOT EXISTS PurchaseReturns(
- Id INTEGER PRIMARY KEY AUTOINCREMENT, ReturnNo TEXT NOT NULL, SupplierId INTEGER,
- DateText TEXT NOT NULL, Total INTEGER NOT NULL DEFAULT 0, Notes TEXT);
+ Id INTEGER PRIMARY KEY AUTOINCREMENT, ReturnNo TEXT NOT NULL, OriginalInvoiceId INTEGER,
+ SupplierId INTEGER, DateText TEXT NOT NULL, Total INTEGER NOT NULL DEFAULT 0, Notes TEXT);
 CREATE TABLE IF NOT EXISTS PurchaseReturnItems(
  Id INTEGER PRIMARY KEY AUTOINCREMENT, ReturnId INTEGER NOT NULL, ProductId INTEGER NOT NULL,
  Quantity INTEGER NOT NULL, UnitPrice INTEGER NOT NULL, Discount INTEGER NOT NULL DEFAULT 0,
@@ -114,6 +114,7 @@ INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) VALUES
         AddColumnIfMissing(cn, "CashTransactions", "PaymentMethod", "TEXT");
         AddColumnIfMissing(cn, "CashTransactions", "ReferenceType", "TEXT");
         AddColumnIfMissing(cn, "CashTransactions", "ReferenceId", "INTEGER");
+        AddColumnIfMissing(cn, "PurchaseReturns", "OriginalInvoiceId", "INTEGER");
 
         using var indexes = cn.CreateCommand();
         indexes.CommandText = @"
