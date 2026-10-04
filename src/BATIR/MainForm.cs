@@ -149,7 +149,6 @@ public class MainForm : Form
 
         var searchPanel = new Panel { Dock = DockStyle.Top, Height = 40 };
         customerSearch.Dock = DockStyle.Fill;
-        customerSearch.PlaceholderText = "جستجوی نام یا تلفن مشتری";
         customerSearch.TextChanged += (_, _) => LoadCustomers(customerSearch.Text.Trim());
         searchPanel.Controls.Add(customerSearch);
 
