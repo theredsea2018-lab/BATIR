@@ -51,7 +51,7 @@ public class MainForm : Form
         tabs.TabPages.Add(BuildProducts());
         tabs.TabPages.Add(BuildInvoices());
         tabs.TabPages.Add(BuildCustomers());
-        tabs.TabPages.Add(SimplePage("چک‌ها", "چک دریافتی، پرداختی، وصول و برگشتی"));
+        tabs.TabPages.Add(BuildChecksPage());
         tabs.TabPages.Add(SimplePage("تنظیمات", "ریال | فارسی | پایگاه داده SQLite"));
 
         var top = new Panel { Dock = DockStyle.Top, Height = 55 };
@@ -326,6 +326,15 @@ VALUES(@date,'کاربر','دریافت از مشتری','Customer',@id,@details
         customerNotes.Clear();
         customerCreditLimit.Value = 0;
         customerPayment.Value = 0;
+    }
+
+    TabPage BuildChecksPage()
+    {
+        var p = new TabPage("چک‌ها");
+        var b = new Button { Text = "باز کردن مدیریت چک‌ها", Dock = DockStyle.Top, Height = 70 };
+        b.Click += (_, _) => new ChecksForm().ShowDialog(this);
+        p.Controls.Add(b);
+        return p;
     }
 
     TabPage SimplePage(string title, string text)
