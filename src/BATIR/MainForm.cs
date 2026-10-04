@@ -82,7 +82,7 @@ public class MainForm : Form
         var p = new TabPage("فاکتور فروش");
         var root = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10) };
 
-        var header = new TableLayoutPanel { Dock = DockStyle.Top, Height = 105, ColumnCount = 4, RowCount = 2, Padding = new Padding(5) };
+        var header = new TableLayoutPanel { Dock = DockStyle.Top, Height = 155, ColumnCount = 4, RowCount = 3, Padding = new Padding(5) };
         for (int i = 0; i < 4; i++) header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
         AddText(header, "جستجوی کالا / بارکد", invoiceSearch, 0, 0);
         AddText(header, "مشتری", customerName, 1, 0);
@@ -90,19 +90,19 @@ public class MainForm : Form
         AddNum(header, "تخفیف", invoiceDiscount, 3, 0);
         AddNum(header, "پرداختی", invoicePaid, 0, 1);
         AddCombo(header, "روش پرداخت", paymentMethod, 1, 1);
-        AddText(header, "توضیحات", invoiceNote, 0, 1);
+        AddText(header, "توضیحات", invoiceNote, 2, 1);
 
         var add = new Button { Text = "افزودن به فاکتور", Dock = DockStyle.Fill };
         add.Click += AddInvoiceItem;
-        header.Controls.Add(add, 2, 1);
+        header.Controls.Add(add, 0, 2);
 
         var save = new Button { Text = "ثبت نهایی فاکتور (F9)", Dock = DockStyle.Fill };
         save.Click += (_, _) => SaveInvoice();
-        header.Controls.Add(save, 3, 1);
+        header.Controls.Add(save, 1, 2);
 
         var clear = new Button { Text = "فاکتور جدید", Dock = DockStyle.Fill };
         clear.Click += (_, _) => ClearInvoice();
-        header.Controls.Add(clear, 2, 1);
+        header.Controls.Add(clear, 2, 2);
 
         paymentMethod.Items.AddRange(new object[] { "نقدی", "کارتخوان", "انتقال بانکی", "اعتباری" });
         paymentMethod.SelectedIndex = 0;
