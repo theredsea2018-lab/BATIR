@@ -52,9 +52,14 @@ public class MainForm : Form
         tabs.TabPages.Add(BuildInvoices());
         tabs.TabPages.Add(BuildCustomers());
         tabs.TabPages.Add(BuildChecksPage());
+        var purchasePage = new TabPage("فاکتور خرید");
+        var purchaseButton = new Button { Text = "باز کردن فاکتور خرید", Dock = DockStyle.Top, Height = 70 };
+        purchaseButton.Click += (_, _) => new PurchaseForm().ShowDialog(this);
+        purchasePage.Controls.Add(purchaseButton);
+        tabs.TabPages.Add(purchasePage);
         var returnsPage = new TabPage("برگشت از فروش");
         var returnsButton = new Button { Text = "باز کردن", Dock = DockStyle.Top, Height = 70 };
-        returnsButton.Click += (_, _) => { var form = Activator.CreateInstance(Type.GetType("BATIR." + "SalesReturns" + "Form")!) as Form; if (form != null) form.ShowDialog(this); };
+        returnsButton.Click += (_, _) => { var form = new SalesReturnsForm(); form.ShowDialog(this); };
         returnsPage.Controls.Add(returnsButton);
         tabs.TabPages.Add(returnsPage);
         var suppliersPage = new TabPage("تأمین‌کنندگان");
