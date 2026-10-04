@@ -320,10 +320,10 @@ CreditLimit=@limit,Notes=@notes WHERE Id=@id",
 
         using var cash = cn.CreateCommand();
         cash.Transaction = tx;
-        cash.CommandText = @"INSERT INTO CashTransactions(DateText,Type,Amount,Description,UserName)
-VALUES(@date,'CustomerReceipt',@amount,@desc,'کاربر')";
+        cash.CommandText = @"INSERT INTO CashTransactions(DateText,Type,Amount,Description,UserName,CustomerId,PaymentMethod,ReferenceType)
+VALUES(@date,'CustomerReceipt',@amount,@desc,'کاربر',@customerId,'نقدی','CustomerReceipt')";
         cash.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-        cash.Parameters.AddWithValue("@amount", amount);
+        cash.Parameters.AddWithValue("@amount", amount);\n                cash.Parameters.AddWithValue("@customerId", id);
         cash.Parameters.AddWithValue("@desc", "دریافت از مشتری: " + customerName.Text.Trim());
         cash.ExecuteNonQuery();
 
