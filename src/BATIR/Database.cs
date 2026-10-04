@@ -163,6 +163,52 @@ CREATE INDEX IF NOT EXISTS IX_CashTransactions_SupplierId ON CashTransactions(Su
         source.BackupDatabase(target);
     }
 
+    public static bool VerifyBackup(string sourcePath)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
+            throw new FileNotFoundException("فایل پشتیبان پیدا نشد.", sourcePath);
+
+        using var cn = new SqliteConnection("Data Source=" + sourcePath + ";");
+        cn.Open();
+        using var cmd = cn.CreateCommand();
+        cmd.CommandText = "PRAGMA integrity_check;";
+        var result = Convert.ToString(cmd.ExecuteScalar());
+        return string.Equals(result, "ok", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static string RestoreFrom(string sourcePath)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
+            throw new FileNotFoundException("فایل پشتیبان پیدا نشد.", sourcePath);
+        if (string.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(FilePath), StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("فایل پشتیبان باید با فایل پایگاه داده فعلی متفاوت باشد.");
+
+        var safetyPath = Path.Combine(Folder, "BATIR-before-restore-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".db");
+        BackupTo(safetyPath);
+
+        var tempPath = FilePath + ".restore-" + Guid.NewGuid().ToString("N") + ".db";
+        try
+        {
+            using (var source = new SqliteConnection("Data Source=" + sourcePath + ";"))
+            using (var target = new SqliteConnection("Data Source=" + tempPath + ";"))
+            {
+                source.Open();
+                target.Open();
+                source.BackupDatabase(target);
+            }
+
+            if (!VerifyBackup(tempPath))
+                throw new InvalidDataException("فایل پشتیبان از نظر ساختار SQLite معتبر نیست.");
+
+            File.Copy(tempPath, FilePath, true);
+            return safetyPath;
+        }
+        finally
+        {
+            try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
+        }
+    }
+
     public static DataTable Query(string sql, params SqliteParameter[] parameters)
     {
         using var cn = Open();
