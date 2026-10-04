@@ -66,7 +66,7 @@ public class SettingsForm : Form
                 case "DateCalendar": calendar.SelectedIndex = value.StartsWith("G", StringComparison.OrdinalIgnoreCase) ? 1 : 0; break;
                 case "PersianDigits": persianDigits.Checked = value.Equals("true", StringComparison.OrdinalIgnoreCase); break;
                 case "AutoLockMinutes":
-                    if (int.TryParse(value, out var minutes)) autoLock.Value = Math.Clamp(minutes, 0, 1440);
+                    if (int.TryParse(value, out var minutes)) autoLock.Value = Math.Max(0, Math.Min(1440, minutes));
                     break;
                 case "NegativeStockAllowed": negativeStock.Checked = value.Equals("true", StringComparison.OrdinalIgnoreCase); break;
             }
