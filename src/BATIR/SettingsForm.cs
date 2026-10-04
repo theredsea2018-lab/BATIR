@@ -136,4 +136,9 @@ ON CONFLICT(Key) DO UPDATE SET Value=excluded.Value,UpdatedAt=excluded.UpdatedAt
         DialogResult = DialogResult.OK;
         Close();
     }
+    static string HashPassword(string password)
+    {
+        using var sha = SHA256.Create();
+        return BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(password))).Replace("-", "").ToLowerInvariant();
+    }
 }
