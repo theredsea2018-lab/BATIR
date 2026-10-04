@@ -133,6 +133,8 @@ VALUES(@r,@p,@q,@u,@d)";
             }
 
             long outstanding = Math.Max(0, total - paid);
+            long debtReduction = Math.Min(outstanding, total);
+            long refundAmount = Math.Max(0, total - outstanding);
 
             if (customerId > 0 && outstanding > 0)
             {
@@ -141,21 +143,23 @@ VALUES(@r,@p,@q,@u,@d)";
                 b.CommandText = @"UPDATE Customers
 SET Balance=CASE WHEN Balance>=@x THEN Balance-@x ELSE 0 END
 WHERE Id=@id";
-                b.Parameters.AddWithValue("@x", outstanding);
+                b.Parameters.AddWithValue("@x", debtReduction);
                 b.Parameters.AddWithValue("@id", customerId);
                 b.ExecuteNonQuery();
             }
 
-            if (paid > 0)
+            if (refundAmount > 0)
             {
                 using var refund = cn.CreateCommand();
                 refund.Transaction = tx;
                 refund.CommandText = @"
-INSERT INTO CashTransactions(DateText,Type,Amount,Description,UserName)
-VALUES(@date,'SalesReturnRefund',@amount,@desc,'کاربر')";
+INSERT INTO CashTransactions(DateText,Type,Amount,Description,UserName,CustomerId,PaymentMethod,ReferenceType,ReferenceId)
+VALUES(@date,'SalesReturnRefund',@amount,@desc,'کاربر',@customer,'نقدی','SalesReturn',@rid)";
                 refund.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-                refund.Parameters.AddWithValue("@amount", paid);
+                refund.Parameters.AddWithValue("@amount", refundAmount);
                 refund.Parameters.AddWithValue("@desc", "بازپرداخت برگشت فروش | فاکتور " + originalId);
+                refund.Parameters.AddWithValue("@customer", customerId > 0 ? (object)customerId : DBNull.Value);
+                refund.Parameters.AddWithValue("@rid", returnId);
                 refund.ExecuteNonQuery();
             }
 
@@ -168,8 +172,9 @@ VALUES(@d,'کاربر','برگشت از فروش','SalesReturn',@id,@details)";
             au.Parameters.AddWithValue("@id", returnId);
             au.Parameters.AddWithValue("@details",
                 "فاکتور: " + originalId + " | مبلغ: " + total +
-                " | پرداخت‌شده/بازپرداخت: " + paid +
-                " | کاهش بدهی: " + outstanding);
+                " | پرداخت‌شده اولیه: " + paid +
+                " | بازپرداخت: " + refundAmount +
+                " | کاهش بدهی: " + debtReduction);
             au.ExecuteNonQuery();
 
             tx.Commit();
