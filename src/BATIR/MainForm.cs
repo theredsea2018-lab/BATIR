@@ -57,6 +57,11 @@ public class MainForm : Form
         purchaseButton.Click += (_, _) => new PurchaseForm().ShowDialog(this);
         purchasePage.Controls.Add(purchaseButton);
         tabs.TabPages.Add(purchasePage);
+        var purchaseReturnsPage = new TabPage("برگشت از خرید");
+        var purchaseReturnsButton = new Button { Text = "باز کردن برگشت از خرید", Dock = DockStyle.Top, Height = 70 };
+        purchaseReturnsButton.Click += (_, _) => new PurchaseReturnsForm().ShowDialog(this);
+        purchaseReturnsPage.Controls.Add(purchaseReturnsButton);
+        tabs.TabPages.Add(purchaseReturnsPage);
         var returnsPage = new TabPage("برگشت از فروش");
         var returnsButton = new Button { Text = "باز کردن", Dock = DockStyle.Top, Height = 70 };
         returnsButton.Click += (_, _) => { var form = new SalesReturnsForm(); form.ShowDialog(this); };
