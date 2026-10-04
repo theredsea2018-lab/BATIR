@@ -11,6 +11,7 @@ public class PurchaseForm : Form
     readonly NumericUpDown unitPrice = new() { Minimum = 0, Maximum = 999999999999 };
     readonly NumericUpDown discount = new() { Minimum = 0, Maximum = 999999999999 };
     readonly NumericUpDown paid = new() { Minimum = 0, Maximum = 999999999999 };
+    readonly ComboBox paymentMethod = new();
     readonly DataGridView grid = new();
     readonly Label total = new();
     readonly DataTable items = new();
@@ -27,6 +28,11 @@ public class PurchaseForm : Form
         AddNum(header,"قیمت خرید",unitPrice,3,0);
         AddNum(header,"تخفیف",discount,0,1);
         AddNum(header,"پرداختی",paid,1,1);
+        paymentMethod.Dock = DockStyle.Fill;
+        paymentMethod.DropDownStyle = ComboBoxStyle.DropDownList;
+        paymentMethod.Items.AddRange(new object[] { "نقدی", "کارتخوان", "انتقال بانکی", "چک" });
+        paymentMethod.SelectedIndex = 0;
+        header.Controls.Add(paymentMethod,2,1);
         var add = new Button { Text="افزودن به خرید", Dock=DockStyle.Fill };
         add.Click += (_,_) => AddItem();
         header.Controls.Add(add,2,1);
@@ -117,13 +123,13 @@ public class PurchaseForm : Form
             if(sid.HasValue&&outstanding>0){using var b=cn.CreateCommand();b.Transaction=tx;b.CommandText="UPDATE Suppliers SET Balance=Balance+@x WHERE Id=@id";b.Parameters.AddWithValue("@x",outstanding);b.Parameters.AddWithValue("@id",sid.Value);b.ExecuteNonQuery();}
             if(sid.HasValue&&p>0){
                 using var cash=cn.CreateCommand(); cash.Transaction=tx;
-                cash.CommandText="INSERT INTO CashTransactions(DateText,Type,Amount,Description,UserName,SupplierId,PaymentMethod,ReferenceType,ReferenceId) VALUES(@d,'SupplierPayment',@a,@desc,'کاربر',@sid,'نقدی','Purchase',@rid)";
+                cash.CommandText="INSERT INTO CashTransactions(DateText,Type,Amount,Description,UserName,SupplierId,PaymentMethod,ReferenceType,ReferenceId) VALUES(@d,'SupplierPayment',@a,@desc,'کاربر',@sid,@method,'Purchase',@rid)";
                 cash.Parameters.AddWithValue("@d",DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
                 cash.Parameters.AddWithValue("@a",p); cash.Parameters.AddWithValue("@desc","پرداخت فاکتور خرید "+no);
-                cash.Parameters.AddWithValue("@sid",sid.Value); cash.Parameters.AddWithValue("@rid",iid); cash.ExecuteNonQuery();
+                cash.Parameters.AddWithValue("@sid",sid.Value); cash.Parameters.AddWithValue("@method",paymentMethod.SelectedItem?.ToString() ?? "نقدی"); cash.Parameters.AddWithValue("@rid",iid); cash.ExecuteNonQuery();
             }
             using var au=cn.CreateCommand();au.Transaction=tx;au.CommandText="INSERT INTO AuditLog(DateText,UserName,Action,Entity,EntityId,Details) VALUES(@d,'کاربر','ثبت فاکتور خرید','Invoice',@id,@x)";au.Parameters.AddWithValue("@d",DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));au.Parameters.AddWithValue("@id",iid);au.Parameters.AddWithValue("@x",no+" | مبلغ: "+t+" | مانده: "+outstanding);au.ExecuteNonQuery();
-            tx.Commit();MessageBox.Show("فاکتور خرید ثبت شد. شماره: "+no);items.Clear();supplier.Clear();paid.Value=0;UpdateTotal();
+            tx.Commit();MessageBox.Show("فاکتور خرید ثبت شد. شماره: "+no);items.Clear();supplier.Clear();paid.Value=0;paymentMethod.SelectedIndex=0;UpdateTotal();
         }catch(Exception ex){MessageBox.Show("ثبت خرید انجام نشد و تغییرات ذخیره نشد.\n"+ex.Message);}
     }
 }
