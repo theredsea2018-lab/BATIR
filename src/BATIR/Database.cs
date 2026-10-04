@@ -152,6 +152,16 @@ CREATE INDEX IF NOT EXISTS IX_CashTransactions_SupplierId ON CashTransactions(Su
         alter.ExecuteNonQuery();
     }
 
+    public static void BackupTo(string destination)
+    {
+        if (string.IsNullOrWhiteSpace(destination)) throw new ArgumentException("مسیر پشتیبان‌گیری خالی است.");
+        Directory.CreateDirectory(Path.GetDirectoryName(destination) ?? Folder);
+        using var source = Open();
+        using var target = new SqliteConnection($"Data Source={destination};");
+        target.Open();
+        source.BackupDatabase(target);
+    }
+
     public static DataTable Query(string sql, params SqliteParameter[] parameters)
     {
         using var cn = Open();
