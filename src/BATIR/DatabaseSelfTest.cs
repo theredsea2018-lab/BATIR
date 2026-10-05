@@ -32,6 +32,14 @@ internal static class DatabaseSelfTest
             foreach (var name in views) EnsureSchemaObject(cn, "view", name);
             foreach (var name in triggers) EnsureSchemaObject(cn, "trigger", name);
 
+            using (var reconciliation = cn.CreateCommand())
+            {
+                reconciliation.CommandText = "SELECT COUNT(*) FROM v_InventoryReconciliation WHERE Difference<>0;";
+                var mismatches = Convert.ToInt64(reconciliation.ExecuteScalar());
+                if (mismatches != 0)
+                    throw new InvalidOperationException("Inventory ledger reconciliation found " + mismatches + " product mismatch(es).");
+            }
+
             using var query = cn.CreateCommand();
             query.CommandText = "SELECT COUNT(*) FROM Products;";
             _ = Convert.ToInt64(query.ExecuteScalar());
