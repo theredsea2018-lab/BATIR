@@ -27,7 +27,7 @@ internal static class DatabaseSelfTest
             }
 
             string[] views = { "v_LowStockProducts", "v_StockValuation", "v_SalesProfit", "v_CustomerBalances", "v_SupplierBalances", "v_InventoryMovementSummary", "v_InventoryReconciliation" };
-            string[] triggers = { "trg_InvoiceItems_PositiveQuantity", "trg_InvoiceItems_NonNegativeAmounts", "trg_DraftInvoiceItems_PositiveQuantity", "trg_ReturnItems_PositiveQuantity", "trg_InventoryAdjustment_ValidDifference", "trg_InventoryMovement_InvoiceItem", "trg_InventoryMovement_SalesReturn", "trg_InventoryMovement_PurchaseReturn", "trg_InventoryMovement_Adjustment" };
+            string[] triggers = { "trg_InvoiceItems_PositiveQuantity", "trg_InvoiceItems_NonNegativeAmounts", "trg_DraftInvoiceItems_PositiveQuantity", "trg_ReturnItems_PositiveQuantity", "trg_InventoryAdjustment_ValidDifference", "trg_InventoryMovement_InvoiceItem", "trg_InventoryMovement_SalesReturn", "trg_InventoryMovement_PurchaseReturn", "trg_InventoryMovement_Adjustment", "trg_Products_ValidUnitFactor", "trg_Products_ValidUnitFactorUpdate", "trg_CashTransactions_PositiveAmount" };
             EnsureSchemaObject(cn, "table", "InventoryMovements");
             foreach (var name in views) EnsureSchemaObject(cn, "view", name);
             foreach (var name in triggers) EnsureSchemaObject(cn, "trigger", name);
@@ -43,6 +43,11 @@ internal static class DatabaseSelfTest
             using var query = cn.CreateCommand();
             query.CommandText = "SELECT COUNT(*) FROM Products;";
             _ = Convert.ToInt64(query.ExecuteScalar());
+
+            using var units = cn.CreateCommand();
+            units.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Products') WHERE name IN ('UnitName','SecondaryUnitName','UnitConversionFactor');";
+            if (Convert.ToInt64(units.ExecuteScalar()) != 3)
+                throw new InvalidOperationException("Product unit schema is incomplete.");
 
             return 0;
         }
