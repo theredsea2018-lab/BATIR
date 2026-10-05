@@ -103,7 +103,6 @@ CREATE INDEX IF NOT EXISTS IX_InventoryAdjustments_ProductId ON InventoryAdjustm
 ";
         cmd.ExecuteNonQuery();
 
-        // Defaults are inserted without overwriting values the user may have changed.
         using var seed = cn.CreateCommand();
         seed.CommandText = @"
 INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) VALUES
@@ -117,7 +116,6 @@ INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) VALUES
 ('AutoLockPasswordHash','',datetime('now'));";
         seed.ExecuteNonQuery();
 
-        // Lightweight schema migrations for databases created by older BATIR builds.
         AddColumnIfMissing(cn, "CashTransactions", "CustomerId", "INTEGER");
         AddColumnIfMissing(cn, "CashTransactions", "SupplierId", "INTEGER");
         AddColumnIfMissing(cn, "CashTransactions", "PaymentMethod", "TEXT");
@@ -137,6 +135,9 @@ CREATE INDEX IF NOT EXISTS IX_CashTransactions_Type ON CashTransactions(Type);
 CREATE INDEX IF NOT EXISTS IX_CashTransactions_CustomerId ON CashTransactions(CustomerId);
 CREATE INDEX IF NOT EXISTS IX_CashTransactions_SupplierId ON CashTransactions(SupplierId);";
         indexes.ExecuteNonQuery();
+
+        // Apply repeatable integrity/performance hardening after legacy migrations.
+        DataIntegrityService.Run(cn);
     }
 
     static void AddColumnIfMissing(SqliteConnection cn, string table, string column, string definition)
