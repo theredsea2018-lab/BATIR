@@ -542,7 +542,7 @@ VALUES(@date,'کاربر','دریافت از مشتری','Customer',@id,@details
         if (sale.Value > 0 && sale.Value < purchase.Value &&
             MessageBox.Show("قیمت فروش کمتر از قیمت خرید است. ثبت شود؟", "هشدار", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
 
-        Database.Execute(@"INSERT INTO Products(Code,Barcode,Name,Brand,Category,PurchasePrice,SalePrice,Stock,CreatedAt)
+        Database.Execute(@"INSERT INTO Products(Code,Barcode,Name,Brand,Category,PurchasePrice,SalePrice,Stock,CreatedAt,UnitName,SecondaryUnitName,UnitConversionFactor)
 VALUES(@code,@barcode,@name,@brand,@category,@purchase,@sale,@stock,@date,@unit,@secondary,@factor)",
             new SqliteParameter("@code", ""), new SqliteParameter("@barcode", barcode.Text.Trim()),
             new SqliteParameter("@name", name.Text.Trim()), new SqliteParameter("@brand", brand.Text.Trim()),
