@@ -87,30 +87,94 @@ SELECT s.Id,s.Name,s.Phone,s.Balance,
        COALESCE((SELECT SUM(ct.Amount) FROM CashTransactions ct WHERE ct.SupplierId=s.Id AND ct.Type='SupplierPayment'),0) AS PaymentsTotal
 FROM Suppliers s;");
 
-            // 36: prevent impossible invoice quantities at database level.
+            // 36-40: database-level validation safeguards.
             Trigger(cn, tx, @"CREATE TRIGGER IF NOT EXISTS trg_InvoiceItems_PositiveQuantity
 BEFORE INSERT ON InvoiceItems WHEN NEW.Quantity<=0
 BEGIN SELECT RAISE(ABORT,'تعداد قلم فاکتور باید بیشتر از صفر باشد.'); END;");
 
-            // 37: prevent negative invoice prices and costs.
             Trigger(cn, tx, @"CREATE TRIGGER IF NOT EXISTS trg_InvoiceItems_NonNegativeAmounts
 BEFORE INSERT ON InvoiceItems WHEN NEW.UnitPrice<0 OR NEW.CostPrice<0 OR NEW.Discount<0
 BEGIN SELECT RAISE(ABORT,'قیمت، بهای تمام‌شده و تخفیف نمی‌توانند منفی باشند.'); END;");
 
-            // 38: prevent invalid draft rows that could break crash recovery.
             Trigger(cn, tx, @"CREATE TRIGGER IF NOT EXISTS trg_DraftInvoiceItems_PositiveQuantity
 BEFORE INSERT ON DraftInvoiceItems WHEN NEW.Quantity<=0
 BEGIN SELECT RAISE(ABORT,'تعداد پیش‌نویس باید بیشتر از صفر باشد.'); END;");
 
-            // 39: prevent invalid return quantities.
             Trigger(cn, tx, @"CREATE TRIGGER IF NOT EXISTS trg_ReturnItems_PositiveQuantity
 BEFORE INSERT ON SalesReturnItems WHEN NEW.Quantity<=0
 BEGIN SELECT RAISE(ABORT,'تعداد برگشت فروش باید بیشتر از صفر باشد.'); END;");
 
-            // 40: keep stocktaking differences mathematically consistent.
             Trigger(cn, tx, @"CREATE TRIGGER IF NOT EXISTS trg_InventoryAdjustment_ValidDifference
 BEFORE INSERT ON InventoryAdjustments WHEN NEW.Difference != (NEW.CountedStock-NEW.BeforeStock)
 BEGIN SELECT RAISE(ABORT,'اختلاف انبارگردانی با موجودی قبل و شمارش واقعی همخوانی ندارد.'); END;");
+
+            // 41-45: persistent inventory movement ledger. This is the foundation for
+            // weighted-average costing, stock history and auditable inventory reports.
+            Table(cn, tx, @"CREATE TABLE IF NOT EXISTS InventoryMovements(
+ Id INTEGER PRIMARY KEY AUTOINCREMENT,
+ DateText TEXT NOT NULL,
+ ProductId INTEGER NOT NULL,
+ Quantity INTEGER NOT NULL,
+ Direction INTEGER NOT NULL,
+ UnitCost INTEGER NOT NULL DEFAULT 0,
+ ReferenceType TEXT NOT NULL,
+ ReferenceId INTEGER,
+ ReferenceItemId INTEGER,
+ Notes TEXT,
+ FOREIGN KEY(ProductId) REFERENCES Products(Id));");
+            Index(cn, tx, "CREATE INDEX IF NOT EXISTS IX_InventoryMovements_ProductDate ON InventoryMovements(ProductId,DateText);");
+            Index(cn, tx, "CREATE INDEX IF NOT EXISTS IX_InventoryMovements_Reference ON InventoryMovements(ReferenceType,ReferenceId);");
+            Index(cn, tx, "CREATE INDEX IF NOT EXISTS IX_InventoryMovements_ProductId ON InventoryMovements(ProductId);");
+
+            // Sale: stock leaves the store. Purchase: stock enters the store.
+            Trigger(cn, tx, @"CREATE TRIGGER IF NOT EXISTS trg_InventoryMovement_InvoiceItem
+AFTER INSERT ON InvoiceItems
+BEGIN
+  INSERT INTO InventoryMovements(DateText,ProductId,Quantity,Direction,UnitCost,ReferenceType,ReferenceId,ReferenceItemId,Notes)
+  SELECT i.DateText,NEW.ProductId,NEW.Quantity,
+         CASE WHEN i.Type='Purchase' THEN 1 ELSE -1 END,
+         NEW.CostPrice,
+         CASE WHEN i.Type='Purchase' THEN 'PurchaseInvoice' ELSE 'SaleInvoice' END,
+         NEW.InvoiceId,NEW.Id,
+         'ثبت خودکار از قلم فاکتور';
+END;");
+
+            // Sales return puts goods back into stock.
+            Trigger(cn, tx, @"CREATE TRIGGER IF NOT EXISTS trg_InventoryMovement_SalesReturn
+AFTER INSERT ON SalesReturnItems
+BEGIN
+  INSERT INTO InventoryMovements(DateText,ProductId,Quantity,Direction,UnitCost,ReferenceType,ReferenceId,ReferenceItemId,Notes)
+  SELECT r.DateText,NEW.ProductId,NEW.Quantity,1,0,'SalesReturn',NEW.ReturnId,NEW.Id,'ثبت خودکار برگشت از فروش';
+END;");
+
+            // Purchase return removes goods from stock.
+            Trigger(cn, tx, @"CREATE TRIGGER IF NOT EXISTS trg_InventoryMovement_PurchaseReturn
+AFTER INSERT ON PurchaseReturnItems
+BEGIN
+  INSERT INTO InventoryMovements(DateText,ProductId,Quantity,Direction,UnitCost,ReferenceType,ReferenceId,ReferenceItemId,Notes)
+  SELECT r.DateText,NEW.ProductId,NEW.Quantity,-1,NEW.CostPrice,'PurchaseReturn',NEW.ReturnId,NEW.Id,'ثبت خودکار برگشت از خرید';
+END;");
+
+            // Stocktaking records the exact correction rather than only the final stock.
+            Trigger(cn, tx, @"CREATE TRIGGER IF NOT EXISTS trg_InventoryMovement_Adjustment
+AFTER INSERT ON InventoryAdjustments
+WHEN NEW.Difference != 0
+BEGIN
+  INSERT INTO InventoryMovements(DateText,ProductId,Quantity,Direction,UnitCost,ReferenceType,ReferenceId,ReferenceItemId,Notes)
+  SELECT NEW.DateText,NEW.ProductId,ABS(NEW.Difference),CASE WHEN NEW.Difference>0 THEN 1 ELSE -1 END,
+         COALESCE((SELECT PurchasePrice FROM Products WHERE Id=NEW.ProductId),0),
+         'InventoryAdjustment',NEW.Id,NULL,NEW.Note;
+END;");
+
+            // 46: a compact movement summary for reports and future weighted-average costing.
+            View(cn, tx, @"CREATE VIEW IF NOT EXISTS v_InventoryMovementSummary AS
+SELECT ProductId,
+       SUM(CASE WHEN Direction=1 THEN Quantity ELSE 0 END) AS TotalIn,
+       SUM(CASE WHEN Direction=-1 THEN Quantity ELSE 0 END) AS TotalOut,
+       SUM(Direction*Quantity) AS NetQuantity,
+       SUM(CASE WHEN Direction=1 THEN Quantity*UnitCost ELSE 0 END) AS InValue,
+       COUNT(*) AS MovementCount
+FROM InventoryMovements GROUP BY ProductId;");
 
             tx.Commit();
         }
@@ -132,6 +196,14 @@ BEGIN SELECT RAISE(ABORT,'اختلاف انبارگردانی با موجودی 
     }
 
     static void Index(SqliteConnection cn, SqliteTransaction tx, string sql)
+    {
+        using var cmd = cn.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = sql;
+        cmd.ExecuteNonQuery();
+    }
+
+    static void Table(SqliteConnection cn, SqliteTransaction tx, string sql)
     {
         using var cmd = cn.CreateCommand();
         cmd.Transaction = tx;
