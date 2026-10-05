@@ -166,6 +166,10 @@ BEGIN
          'InventoryAdjustment',NEW.Id,NULL,NEW.Note;
 END;");
 
+            // 47-49: one-time reconstruction of the movement ledger for databases that already
+            // contain invoices/returns/stocktakes. This makes the ledger useful immediately after upgrade.
+            EnsureInventoryLedger(cn, tx);
+
             // 46: a compact movement summary for reports and future weighted-average costing.
             View(cn, tx, @"CREATE VIEW IF NOT EXISTS v_InventoryMovementSummary AS
 SELECT ProductId,
@@ -183,6 +187,64 @@ FROM InventoryMovements GROUP BY ProductId;");
             try { tx.Rollback(); } catch { }
             throw;
         }
+    }
+
+
+    static void EnsureInventoryLedger(SqliteConnection cn, SqliteTransaction tx)
+    {
+        using var check = cn.CreateCommand();
+        check.Transaction = tx;
+        check.CommandText = "SELECT Value FROM Settings WHERE Key='InventoryLedgerRebuilt' LIMIT 1;";
+        var state = Convert.ToString(check.ExecuteScalar());
+        if (string.Equals(state, "true", StringComparison.OrdinalIgnoreCase)) return;
+
+        using (var clear = cn.CreateCommand())
+        {
+            clear.Transaction = tx;
+            clear.CommandText = "DELETE FROM InventoryMovements;";
+            clear.ExecuteNonQuery();
+        }
+
+        InsertLedger(cn, tx, @"INSERT INTO InventoryMovements(DateText,ProductId,Quantity,Direction,UnitCost,ReferenceType,ReferenceId,ReferenceItemId,Notes)
+SELECT i.DateText,ii.ProductId,ii.Quantity,CASE WHEN i.Type='Purchase' THEN 1 ELSE -1 END,
+       ii.CostPrice,CASE WHEN i.Type='Purchase' THEN 'PurchaseInvoice' ELSE 'SaleInvoice' END,
+       i.Id,ii.Id,'بازسازی سابقه از فاکتور' FROM InvoiceItems ii JOIN Invoices i ON i.Id=ii.InvoiceId
+WHERE i.Type IN ('Purchase','Sale');");
+
+        InsertLedger(cn, tx, @"INSERT INTO InventoryMovements(DateText,ProductId,Quantity,Direction,UnitCost,ReferenceType,ReferenceId,ReferenceItemId,Notes)
+SELECT r.DateText,ri.ProductId,ri.Quantity,1,0,'SalesReturn',r.Id,ri.Id,'بازسازی سابقه برگشت فروش'
+FROM SalesReturnItems ri JOIN SalesReturns r ON r.Id=ri.ReturnId;");
+
+        InsertLedger(cn, tx, @"INSERT INTO InventoryMovements(DateText,ProductId,Quantity,Direction,UnitCost,ReferenceType,ReferenceId,ReferenceItemId,Notes)
+SELECT r.DateText,ri.ProductId,ri.Quantity,-1,ri.CostPrice,'PurchaseReturn',r.Id,ri.Id,'بازسازی سابقه برگشت خرید'
+FROM PurchaseReturnItems ri JOIN PurchaseReturns r ON r.Id=ri.ReturnId;");
+
+        InsertLedger(cn, tx, @"INSERT INTO InventoryMovements(DateText,ProductId,Quantity,Direction,UnitCost,ReferenceType,ReferenceId,ReferenceItemId,Notes)
+SELECT a.DateText,a.ProductId,ABS(a.Difference),CASE WHEN a.Difference>0 THEN 1 ELSE -1 END,
+       COALESCE(p.PurchasePrice,0),'InventoryAdjustment',a.Id,NULL,a.Note
+FROM InventoryAdjustments a JOIN Products p ON p.Id=a.ProductId WHERE a.Difference<>0;");
+
+        InsertLedger(cn, tx, @"INSERT INTO InventoryMovements(DateText,ProductId,Quantity,Direction,UnitCost,ReferenceType,ReferenceId,ReferenceItemId,Notes)
+SELECT COALESCE(p.CreatedAt,datetime('now')),p.Id,ABS(p.Stock-COALESCE(m.NetQty,0)),
+       CASE WHEN p.Stock-COALESCE(m.NetQty,0)>0 THEN 1 ELSE -1 END,
+       p.PurchasePrice,'OpeningBalance',NULL,NULL,'موجودی افتتاحیه/تطبیق اولیه'
+FROM Products p LEFT JOIN (
+  SELECT ProductId,SUM(Direction*Quantity) AS NetQty FROM InventoryMovements GROUP BY ProductId
+) m ON m.ProductId=p.Id
+WHERE p.Stock-COALESCE(m.NetQty,0)<>0;");
+
+        using var set = cn.CreateCommand();
+        set.Transaction = tx;
+        set.CommandText = "INSERT INTO Settings(Key,Value,UpdatedAt) VALUES('InventoryLedgerRebuilt','true',datetime('now')) ON CONFLICT(Key) DO UPDATE SET Value='true',UpdatedAt=datetime('now');";
+        set.ExecuteNonQuery();
+    }
+
+    static void InsertLedger(SqliteConnection cn, SqliteTransaction tx, string sql)
+    {
+        using var cmd = cn.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = sql;
+        cmd.ExecuteNonQuery();
     }
 
     static void EnsureSetting(SqliteConnection cn, SqliteTransaction tx, string key, string value)
