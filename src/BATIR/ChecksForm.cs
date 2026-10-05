@@ -78,39 +78,157 @@ FROM Checks ORDER BY Id DESC");
     }
     void Save()
     {
-        if(amount.Value<=0){MessageBox.Show("مبلغ چک را وارد کنید.");return;}
-        var partyName=party.Text.Trim();
-        long customerId=0, supplierId=0;
+        if (amount.Value <= 0) { MessageBox.Show("مبلغ چک را وارد کنید."); return; }
+        var checkNo = no.Text.Trim();
+        if (string.IsNullOrWhiteSpace(checkNo)) { MessageBox.Show("شماره چک را وارد کنید."); return; }
+
+        var partyName = party.Text.Trim();
+        long customerId = 0, supplierId = 0;
         if (partyName != "")
         {
-            if (type.Text=="دریافتی")
-                customerId=FindPartyId("Customers",partyName);
+            if (type.Text == "دریافتی") customerId = FindPartyId("Customers", partyName);
+            else supplierId = FindPartyId("Suppliers", partyName);
+            if (customerId == 0 && supplierId == 0)
+            {
+                if (MessageBox.Show("طرف حساب پیدا نشد. چک بدون لینک حساب ذخیره شود؟", "تأیید",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+            }
+        }
+
+        try
+        {
+            using var cn = Database.Open();
+            using var tx = cn.BeginTransaction();
+
+            long id;
+            string before = "";
+            long oldAmount = 0;
+            string oldType = type.Text;
+            string oldParty = partyName;
+            long oldCustomer = 0, oldSupplier = 0;
+
+            if (editId == 0)
+            {
+                using var duplicate = cn.CreateCommand();
+                duplicate.Transaction = tx;
+                duplicate.CommandText = "SELECT COUNT(*) FROM Checks WHERE CheckNo=@no AND Type=@type";
+                duplicate.Parameters.AddWithValue("@no", checkNo);
+                duplicate.Parameters.AddWithValue("@type", type.Text);
+                if (Convert.ToInt64(duplicate.ExecuteScalar()) > 0)
+                    throw new InvalidOperationException("این شماره چک با همین نوع قبلاً ثبت شده است.");
+
+                using var cmd = cn.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandText = @"INSERT INTO Checks(CheckNo,Bank,Amount,DueDate,Type,Status,PartyName,Notes,CustomerId,SupplierId,LedgerStatus)
+VALUES(@no,@bank,@amount,@due,@type,@state,@party,@notes,@customer,@supplier,NULL);
+SELECT last_insert_rowid();";
+                AddCheckParameters(cmd, checkNo, customerId, supplierId);
+                id = Convert.ToInt64(cmd.ExecuteScalar());
+            }
             else
-                supplierId=FindPartyId("Suppliers",partyName);
+            {
+                id = editId;
+                using var old = cn.CreateCommand();
+                old.Transaction = tx;
+                old.CommandText = "SELECT Amount,Type,Status,PartyName,CustomerId,SupplierId FROM Checks WHERE Id=@id";
+                old.Parameters.AddWithValue("@id", id);
+                using var reader = old.ExecuteReader();
+                if (!reader.Read()) throw new InvalidOperationException("چک موردنظر پیدا نشد.");
+                oldAmount = Convert.ToInt64(reader["Amount"]);
+                oldType = Convert.ToString(reader["Type"]) ?? type.Text;
+                before = Convert.ToString(reader["Status"]) ?? "";
+                oldParty = Convert.ToString(reader["PartyName"]) ?? "";
+                oldCustomer = reader["CustomerId"] == DBNull.Value ? 0 : Convert.ToInt64(reader["CustomerId"]);
+                oldSupplier = reader["SupplierId"] == DBNull.Value ? 0 : Convert.ToInt64(reader["SupplierId"]);
+                reader.Close();
 
-            if (customerId==0 && supplierId==0)
-                MessageBox.Show("طرف حساب در فهرست مشتری/تأمین‌کننده پیدا نشد؛ چک بدون لینک حساب ذخیره می‌شود.");
-        }
+                using var duplicate = cn.CreateCommand();
+                duplicate.Transaction = tx;
+                duplicate.CommandText = "SELECT COUNT(*) FROM Checks WHERE CheckNo=@no AND Type=@type AND Id<>@id";
+                duplicate.Parameters.AddWithValue("@no", checkNo);
+                duplicate.Parameters.AddWithValue("@type", type.Text);
+                duplicate.Parameters.AddWithValue("@id", id);
+                if (Convert.ToInt64(duplicate.ExecuteScalar()) > 0)
+                    throw new InvalidOperationException("این شماره چک با همین نوع قبلاً ثبت شده است.");
 
-        if(editId==0)
-        {
-            Database.Execute(@"INSERT INTO Checks(CheckNo,Bank,Amount,DueDate,Type,Status,PartyName,Notes,CustomerId,SupplierId,LedgerStatus)
-VALUES(@no,@bank,@amount,@due,@type,@state,@party,@notes,@customer,@supplier,NULL)",
-                P(new SqliteParameter("@customer",customerId>0?(object)customerId:DBNull.Value),
-                  new SqliteParameter("@supplier",supplierId>0?(object)supplierId:DBNull.Value)));
-            var created=Database.Query("SELECT Id FROM Checks WHERE CheckNo=@no ORDER BY Id DESC LIMIT 1",new SqliteParameter("@no",no.Text.Trim()));
-            if(created.Rows.Count>0) PostLedgerTransition(Convert.ToInt64(created.Rows[0]["Id"]), "", state.Text, (long)amount.Value, type.Text, partyName, no.Text.Trim(), customerId, supplierId);
+                using var cmd = cn.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandText = @"UPDATE Checks SET CheckNo=@no,Bank=@bank,Amount=@amount,DueDate=@due,Type=@type,
+Status=@state,PartyName=@party,Notes=@notes,CustomerId=@customer,SupplierId=@supplier WHERE Id=@id";
+                AddCheckParameters(cmd, checkNo, customerId, supplierId);
+                cmd.Parameters.AddWithValue("@id", id);
+                cmd.ExecuteNonQuery();
+            }
+
+            var changedTypeOrParty = editId != 0 && (oldType != type.Text || oldCustomer != customerId || oldSupplier != supplierId || oldParty != partyName);
+            if (editId != 0 && before == "وصول شد" && changedTypeOrParty)
+                throw new InvalidOperationException("چک وصول‌شده را نمی‌توان با تغییر نوع یا طرف حساب ویرایش کرد.");
+
+            if (before != state.Text || editId == 0)
+            {
+                string? ledgerType = null;
+                if (before == "وصول شد" && state.Text != "وصول شد")
+                    ledgerType = oldType == "دریافتی" ? "CheckReceiptReversal" : "CheckPaymentReversal";
+                else if (state.Text == "وصول شد")
+                    ledgerType = type.Text == "دریافتی" ? "CheckClearedReceipt" : "CheckClearedPayment";
+
+                if (ledgerType != null)
+                {
+                    using var cash = cn.CreateCommand();
+                    cash.Transaction = tx;
+                    cash.CommandText = @"INSERT INTO CashTransactions(DateText,Type,Amount,Description,UserName,CustomerId,SupplierId,PaymentMethod,ReferenceType,ReferenceId)
+VALUES(@d,@t,@a,@desc,'کاربر',@customer,@supplier,'چک','Check',@id)";
+                    cash.Parameters.AddWithValue("@d", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                    cash.Parameters.AddWithValue("@t", ledgerType);
+                    cash.Parameters.AddWithValue("@a", amount.Value);
+                    cash.Parameters.AddWithValue("@desc", "چک " + checkNo + " | " + partyName);
+                    cash.Parameters.AddWithValue("@customer", customerId > 0 ? (object)customerId : DBNull.Value);
+                    cash.Parameters.AddWithValue("@supplier", supplierId > 0 ? (object)supplierId : DBNull.Value);
+                    cash.Parameters.AddWithValue("@id", id);
+                    cash.ExecuteNonQuery();
+                }
+            }
+
+            using var mark = cn.CreateCommand();
+            mark.Transaction = tx;
+            mark.CommandText = "UPDATE Checks SET LedgerStatus=@s WHERE Id=@id";
+            mark.Parameters.AddWithValue("@s", state.Text == "وصول شد" ? "Cleared" : (state.Text == "برگشت خورد" ? "Returned" : state.Text));
+            mark.Parameters.AddWithValue("@id", id);
+            mark.ExecuteNonQuery();
+
+            using var audit = cn.CreateCommand();
+            audit.Transaction = tx;
+            audit.CommandText = @"INSERT INTO AuditLog(DateText,UserName,Action,Entity,EntityId,Details)
+VALUES(@d,'کاربر',@action,'Check',@id,@details)";
+            audit.Parameters.AddWithValue("@d", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            audit.Parameters.AddWithValue("@action", editId == 0 ? "ثبت چک" : "ویرایش چک");
+            audit.Parameters.AddWithValue("@id", id);
+            audit.Parameters.AddWithValue("@details", checkNo + " | مبلغ: " + amount.Value + " | وضعیت: " + state.Text);
+            audit.ExecuteNonQuery();
+
+            tx.Commit();
+            Clear();
+            LoadChecks();
         }
-        else
+        catch (Exception ex)
         {
-            var parameters=P(
-                new SqliteParameter("@id",editId),
-                new SqliteParameter("@customer",customerId>0?(object)customerId:DBNull.Value),
-                new SqliteParameter("@supplier",supplierId>0?(object)supplierId:DBNull.Value));
-            Database.Execute(@"UPDATE Checks SET CheckNo=@no,Bank=@bank,Amount=@amount,DueDate=@due,Type=@type,Status=@state,PartyName=@party,Notes=@notes,CustomerId=@customer,SupplierId=@supplier WHERE Id=@id",parameters);
-            PostLedgerTransition(editId, oldStatus, state.Text, (long)amount.Value, type.Text, partyName, no.Text.Trim(), customerId, supplierId);
+            MessageBox.Show("ثبت چک انجام نشد و تغییرات ذخیره نشد.\n" + ex.Message, "خطا",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
-        Clear(); LoadChecks();
+    }
+
+    void AddCheckParameters(SqliteCommand cmd, string checkNo, long customerId, long supplierId)
+    {
+        cmd.Parameters.AddWithValue("@no", checkNo);
+        cmd.Parameters.AddWithValue("@bank", bank.Text.Trim());
+        cmd.Parameters.AddWithValue("@amount", (long)amount.Value);
+        cmd.Parameters.AddWithValue("@due", due.Text.Trim());
+        cmd.Parameters.AddWithValue("@type", type.Text);
+        cmd.Parameters.AddWithValue("@state", state.Text);
+        cmd.Parameters.AddWithValue("@party", party.Text.Trim());
+        cmd.Parameters.AddWithValue("@notes", notes.Text.Trim());
+        cmd.Parameters.AddWithValue("@customer", customerId > 0 ? (object)customerId : DBNull.Value);
+        cmd.Parameters.AddWithValue("@supplier", supplierId > 0 ? (object)supplierId : DBNull.Value);
     }
 
     long FindPartyId(string table,string name)
