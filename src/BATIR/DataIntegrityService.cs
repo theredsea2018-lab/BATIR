@@ -188,6 +188,28 @@ SELECT p.Id,p.Name,p.Stock,
 FROM Products p LEFT JOIN InventoryMovements m ON m.ProductId=p.Id
 GROUP BY p.Id,p.Name,p.Stock;");
 
+            // 50-52: cash-shift control ledger for daily cashier closing and handover.
+            Table(cn, tx, @"CREATE TABLE IF NOT EXISTS CashShifts(
+ Id INTEGER PRIMARY KEY AUTOINCREMENT,
+ Name TEXT NOT NULL,
+ OpenedAt TEXT NOT NULL,
+ ClosedAt TEXT,
+ OpeningCash INTEGER NOT NULL DEFAULT 0,
+ ExpectedCash INTEGER NOT NULL DEFAULT 0,
+ ClosingCash INTEGER NOT NULL DEFAULT 0,
+ Difference INTEGER NOT NULL DEFAULT 0,
+ Status TEXT NOT NULL DEFAULT 'Open',
+ Notes TEXT
+);");
+            Index(cn, tx, "CREATE INDEX IF NOT EXISTS IX_CashShifts_Status ON CashShifts(Status);");
+            Index(cn, tx, "CREATE INDEX IF NOT EXISTS IX_CashShifts_OpenedAt ON CashShifts(OpenedAt);");
+
+            // 53: prevent invalid negative cash-shift amounts.
+            Trigger(cn, tx, @"CREATE TRIGGER IF NOT EXISTS trg_CashShifts_NonNegative
+BEFORE INSERT ON CashShifts
+WHEN NEW.OpeningCash<0 OR NEW.ExpectedCash<0 OR NEW.ClosingCash<0
+BEGIN SELECT RAISE(ABORT,'مبالغ شیفت نمی‌توانند منفی باشند.'); END;");
+
             // 46: a compact movement summary for reports and future weighted-average costing.
             View(cn, tx, @"CREATE VIEW IF NOT EXISTS v_InventoryMovementSummary AS
 SELECT ProductId,
