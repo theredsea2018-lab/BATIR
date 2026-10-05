@@ -87,6 +87,17 @@ SELECT s.Id,s.Name,s.Phone,s.Balance,
        COALESCE((SELECT SUM(ct.Amount) FROM CashTransactions ct WHERE ct.SupplierId=s.Id AND ct.Type='SupplierPayment'),0) AS PaymentsTotal
 FROM Suppliers s;");
 
+            // Product units and financial transaction safeguards.
+            Trigger(cn, tx, @"CREATE TRIGGER IF NOT EXISTS trg_Products_ValidUnitFactor
+BEFORE INSERT ON Products WHEN NEW.UnitConversionFactor<=0
+BEGIN SELECT RAISE(ABORT,'ضریب واحد باید بزرگتر از صفر باشد.'); END;");
+            Trigger(cn, tx, @"CREATE TRIGGER IF NOT EXISTS trg_Products_ValidUnitFactorUpdate
+BEFORE UPDATE OF UnitConversionFactor ON Products WHEN NEW.UnitConversionFactor<=0
+BEGIN SELECT RAISE(ABORT,'ضریب واحد باید بزرگتر از صفر باشد.'); END;");
+            Trigger(cn, tx, @"CREATE TRIGGER IF NOT EXISTS trg_CashTransactions_PositiveAmount
+BEFORE INSERT ON CashTransactions WHEN NEW.Amount<=0
+BEGIN SELECT RAISE(ABORT,'مبلغ عملیات مالی باید بیشتر از صفر باشد.'); END;");
+
             // 36-40: database-level validation safeguards.
             Trigger(cn, tx, @"CREATE TRIGGER IF NOT EXISTS trg_InvoiceItems_PositiveQuantity
 BEFORE INSERT ON InvoiceItems WHEN NEW.Quantity<=0
