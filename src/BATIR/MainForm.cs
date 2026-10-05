@@ -14,6 +14,9 @@ public class MainForm : Form
     readonly NumericUpDown purchase = new();
     readonly NumericUpDown sale = new();
     readonly NumericUpDown stock = new();
+    readonly TextBox unitName = new();
+    readonly TextBox secondaryUnitName = new();
+    readonly NumericUpDown unitFactor = new() { Minimum = 1, Maximum = 1000000, Value = 1 };
     readonly TextBox search = new();
     readonly TextBox invoiceSearch = new();
     readonly NumericUpDown invoiceQty = new() { Minimum = 1, Maximum = 999999 };
@@ -185,6 +188,14 @@ public class MainForm : Form
         settingsButton.Click += (_, _) => new SettingsForm().ShowDialog(this);
         settingsPage.Controls.Add(settingsButton);
         tabs.TabPages.Add(settingsPage);
+        var financePage = new TabPage("مالی روزانه");
+        var financeButton = new Button { Text = "دریافت، پرداخت تأمین‌کننده و هزینه‌ها", Dock = DockStyle.Top, Height = 70 };
+        financeButton.Click += (_,_) => new FinancialOperationsForm().ShowDialog(this);
+        financePage.Controls.Add(financeButton); tabs.TabPages.Add(financePage);
+        var inventoryOpsPage = new TabPage("اصلاح موجودی");
+        var inventoryOpsButton = new Button { Text = "اصلاح و ثبت گردش موجودی", Dock = DockStyle.Top, Height = 70 };
+        inventoryOpsButton.Click += (_,_) => new InventoryTransferForm().ShowDialog(this);
+        inventoryOpsPage.Controls.Add(inventoryOpsButton); tabs.TabPages.Add(inventoryOpsPage);
 
         var top = new Panel { Dock = DockStyle.Top, Height = 55 };
         var title = new Label { Text = "  باتیر | حسابداری و انبارداری", Dock = DockStyle.Left, Width = 350,
@@ -204,12 +215,14 @@ public class MainForm : Form
     TabPage BuildProducts()
     {
         var page = new TabPage("کالا و انبار");
-        var form = new TableLayoutPanel { Dock = DockStyle.Top, Height = 125, ColumnCount = 4, RowCount = 2, Padding = new Padding(8) };
+        var form = new TableLayoutPanel { Dock = DockStyle.Top, Height = 170, ColumnCount = 4, RowCount = 3, Padding = new Padding(8) };
         for (int i = 0; i < 4; i++) form.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
         AddText(form, "نام کالا", name, 0, 0); AddText(form, "بارکد", barcode, 1, 0);
         AddText(form, "برند", brand, 2, 0); AddText(form, "دسته‌بندی", category, 3, 0);
         AddNum(form, "قیمت خرید", purchase, 0, 1); AddNum(form, "قیمت فروش", sale, 1, 1); AddNum(form, "موجودی", stock, 2, 1);
+        AddText(form, "واحد اصلی", unitName, 0, 2); AddText(form, "واحد فرعی", secondaryUnitName, 1, 2); AddNum(form, "ضریب واحد", unitFactor, 2, 2);
         var add = new Button { Text = "ثبت کالا", Dock = DockStyle.Fill }; add.Click += AddProduct; form.Controls.Add(add, 3, 1);
+        var finance = new Button { Text = "دریافت / پرداخت / هزینه", Dock = DockStyle.Fill }; finance.Click += (_,_) => new FinancialOperationsForm().ShowDialog(this); form.Controls.Add(finance, 3, 2);
 
         var searchPanel = new Panel { Dock = DockStyle.Top, Height = 42, Padding = new Padding(8) };
         search.Dock = DockStyle.Fill; search.TextChanged += (_, _) => LoadProducts(search.Text.Trim());
@@ -516,7 +529,7 @@ VALUES(@date,'کاربر','دریافت از مشتری','Customer',@id,@details
 
     void LoadProducts(string q = "")
     {
-        var sql = "SELECT Id,Code AS [کد],Barcode AS [بارکد],Name AS [نام کالا],Brand AS [برند],Category AS [دسته],PurchasePrice AS [خرید],SalePrice AS [فروش],Stock AS [موجودی] FROM Products WHERE Active=1";
+        var sql = "SELECT Id,Code AS [کد],Barcode AS [بارکد],Name AS [نام کالا],Brand AS [برند],Category AS [دسته],UnitName AS [واحد],SecondaryUnitName AS [واحد فرعی],UnitConversionFactor AS [ضریب],PurchasePrice AS [خرید],SalePrice AS [فروش],Stock AS [موجودی] FROM Products WHERE Active=1";
         if (!string.IsNullOrWhiteSpace(q)) sql += " AND (Name LIKE @q OR Barcode LIKE @q OR Brand LIKE @q OR Category LIKE @q)";
         sql += " ORDER BY Id DESC";
         var dt = string.IsNullOrWhiteSpace(q) ? Database.Query(sql) : Database.Query(sql, new SqliteParameter("@q", "%" + q + "%"));
@@ -530,13 +543,16 @@ VALUES(@date,'کاربر','دریافت از مشتری','Customer',@id,@details
             MessageBox.Show("قیمت فروش کمتر از قیمت خرید است. ثبت شود؟", "هشدار", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
 
         Database.Execute(@"INSERT INTO Products(Code,Barcode,Name,Brand,Category,PurchasePrice,SalePrice,Stock,CreatedAt)
-VALUES(@code,@barcode,@name,@brand,@category,@purchase,@sale,@stock,@date)",
+VALUES(@code,@barcode,@name,@brand,@category,@purchase,@sale,@stock,@date,@unit,@secondary,@factor)",
             new SqliteParameter("@code", ""), new SqliteParameter("@barcode", barcode.Text.Trim()),
             new SqliteParameter("@name", name.Text.Trim()), new SqliteParameter("@brand", brand.Text.Trim()),
             new SqliteParameter("@category", category.Text.Trim()), new SqliteParameter("@purchase", (long)purchase.Value),
             new SqliteParameter("@sale", (long)sale.Value), new SqliteParameter("@stock", (long)stock.Value),
-            new SqliteParameter("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
-        name.Clear(); barcode.Clear(); brand.Clear(); category.Clear(); purchase.Value = 0; sale.Value = 0; stock.Value = 0;
+            new SqliteParameter("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")),
+            new SqliteParameter("@unit", string.IsNullOrWhiteSpace(unitName.Text) ? "عدد" : unitName.Text.Trim()),
+            new SqliteParameter("@secondary", string.IsNullOrWhiteSpace(secondaryUnitName.Text) ? (object)DBNull.Value : secondaryUnitName.Text.Trim()),
+            new SqliteParameter("@factor", (long)unitFactor.Value)));
+        name.Clear(); barcode.Clear(); brand.Clear(); category.Clear(); unitName.Clear(); secondaryUnitName.Clear(); unitFactor.Value = 1; purchase.Value = 0; sale.Value = 0; stock.Value = 0;
         LoadProducts();
     }
 
