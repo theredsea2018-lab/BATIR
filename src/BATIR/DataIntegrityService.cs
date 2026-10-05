@@ -170,6 +170,13 @@ END;");
             // contain invoices/returns/stocktakes. This makes the ledger useful immediately after upgrade.
             EnsureInventoryLedger(cn, tx);
 
+            View(cn, tx, @"CREATE VIEW IF NOT EXISTS v_InventoryReconciliation AS
+SELECT p.Id,p.Name,p.Stock,
+       COALESCE(SUM(m.Direction*m.Quantity),0) AS LedgerStock,
+       p.Stock-COALESCE(SUM(m.Direction*m.Quantity),0) AS Difference
+FROM Products p LEFT JOIN InventoryMovements m ON m.ProductId=p.Id
+GROUP BY p.Id,p.Name,p.Stock;");
+
             // 46: a compact movement summary for reports and future weighted-average costing.
             View(cn, tx, @"CREATE VIEW IF NOT EXISTS v_InventoryMovementSummary AS
 SELECT ProductId,
