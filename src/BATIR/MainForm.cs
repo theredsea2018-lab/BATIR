@@ -183,6 +183,11 @@ public class MainForm : Form
         debtorsButton.Click += (_, _) => new DebtorsCreditorsForm().ShowDialog(this);
         debtorsPage.Controls.Add(debtorsButton);
         tabs.TabPages.Add(debtorsPage);
+        var stage2Page = new TabPage("کنترل و گزارش مرحله دوم");
+        var stage2Button = new Button { Text = "گزارش سود، بهای میانگین، هشدار، تغییر گروهی قیمت، گردش کالا و بستن شیفت", Dock = DockStyle.Top, Height = 70 };
+        stage2Button.Click += (_, _) => new Stage2ReportsForm().ShowDialog(this);
+        stage2Page.Controls.Add(stage2Button);
+        tabs.TabPages.Add(stage2Page);
         var settingsPage = new TabPage("تنظیمات");
         var settingsButton = new Button { Text = "باز کردن تنظیمات BATIR", Dock = DockStyle.Top, Height = 70 };
         settingsButton.Click += (_, _) => new SettingsForm().ShowDialog(this);
