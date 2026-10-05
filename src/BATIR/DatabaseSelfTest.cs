@@ -26,7 +26,7 @@ internal static class DatabaseSelfTest
                     throw new InvalidOperationException("SQLite foreign_key_check found an invalid reference.");
             }
 
-            string[] views = { "v_LowStockProducts", "v_StockValuation", "v_SalesProfit", "v_CustomerBalances", "v_SupplierBalances", "v_InventoryMovementSummary" };
+            string[] views = { "v_LowStockProducts", "v_StockValuation", "v_SalesProfit", "v_CustomerBalances", "v_SupplierBalances", "v_InventoryMovementSummary", "v_InventoryReconciliation" };
             string[] triggers = { "trg_InvoiceItems_PositiveQuantity", "trg_InvoiceItems_NonNegativeAmounts", "trg_DraftInvoiceItems_PositiveQuantity", "trg_ReturnItems_PositiveQuantity", "trg_InventoryAdjustment_ValidDifference", "trg_InventoryMovement_InvoiceItem", "trg_InventoryMovement_SalesReturn", "trg_InventoryMovement_PurchaseReturn", "trg_InventoryMovement_Adjustment" };
             EnsureSchemaObject(cn, "table", "InventoryMovements");
             foreach (var name in views) EnsureSchemaObject(cn, "view", name);
