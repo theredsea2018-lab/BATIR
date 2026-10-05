@@ -20,7 +20,7 @@ public class PurchaseForm : Form
     {
         Text = "BATIR | فاکتور خرید"; Width = 1100; Height = 700;
         RightToLeft = RightToLeft.Yes; RightToLeftLayout = true;
-        var header = new TableLayoutPanel { Dock = DockStyle.Top, Height = 150, ColumnCount = 4, RowCount = 3, Padding = new Padding(8) };
+        var header = new TableLayoutPanel { Dock = DockStyle.Top, Height = 190, ColumnCount = 4, RowCount = 3, Padding = new Padding(8) };
         for (int i=0;i<4;i++) header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,25));
         AddText(header,"تأمین‌کننده",supplier,0,0);
         AddText(header,"کالا / بارکد",product,1,0);
@@ -35,10 +35,11 @@ public class PurchaseForm : Form
         header.Controls.Add(paymentMethod,2,1);
         var add = new Button { Text="افزودن به خرید", Dock=DockStyle.Fill };
         add.Click += (_,_) => AddItem();
-        header.Controls.Add(add,2,1);
+        header.Controls.Add(add,2,2);
         var save = new Button { Text="ثبت فاکتور خرید", Dock=DockStyle.Fill };
         save.Click += (_,_) => SavePurchase();
-        header.Controls.Add(save,3,1);
+        header.Controls.Add(save,3,2);
+        paid.ValueChanged += (_,_) => UpdateTotal();
 
         items.Columns.Add("ProductId",typeof(long));
         items.Columns.Add("کالا",typeof(string));
