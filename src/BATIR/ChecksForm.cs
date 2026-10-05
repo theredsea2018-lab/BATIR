@@ -63,7 +63,7 @@ public class ChecksForm : Form
     {
         grid.DataSource=Database.Query(@"SELECT Id,CheckNo AS [شماره],Bank AS [بانک],Amount AS [مبلغ],
 DueDate AS [سررسید],Type AS [نوع],Status AS [وضعیت],PartyName AS [طرف حساب],
-CASE WHEN CustomerId IS NOT NULL THEN "مشتری" WHEN SupplierId IS NOT NULL THEN "تأمین‌کننده" ELSE "" END AS [حساب مرتبط],Notes AS [توضیحات]
+CASE WHEN CustomerId IS NOT NULL THEN 'مشتری' WHEN SupplierId IS NOT NULL THEN 'تأمین‌کننده' ELSE '' END AS [حساب مرتبط],Notes AS [توضیحات]
 FROM Checks ORDER BY Id DESC");
     }
     void Edit(int row)
