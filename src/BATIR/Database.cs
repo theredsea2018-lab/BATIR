@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS Products(
  Code TEXT, Barcode TEXT, Name TEXT NOT NULL, Brand TEXT, Category TEXT,
  PurchasePrice INTEGER NOT NULL DEFAULT 0, SalePrice INTEGER NOT NULL DEFAULT 0,
  Stock INTEGER NOT NULL DEFAULT 0, MinStock INTEGER NOT NULL DEFAULT 0,
- Active INTEGER NOT NULL DEFAULT 1, CreatedAt TEXT NOT NULL);
+ Active INTEGER NOT NULL DEFAULT 1, CreatedAt TEXT NOT NULL, UnitName TEXT NOT NULL DEFAULT 'عدد', SecondaryUnitName TEXT, UnitConversionFactor INTEGER NOT NULL DEFAULT 1);
 CREATE TABLE IF NOT EXISTS Customers(
  Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL, Phone TEXT,
  Address TEXT, CreditLimit INTEGER NOT NULL DEFAULT 0,
@@ -116,6 +116,9 @@ INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) VALUES
 ('AutoLockPasswordHash','',datetime('now'));";
         seed.ExecuteNonQuery();
 
+        AddColumnIfMissing(cn, "Products", "UnitName", "TEXT NOT NULL DEFAULT 'عدد'");
+        AddColumnIfMissing(cn, "Products", "SecondaryUnitName", "TEXT");
+        AddColumnIfMissing(cn, "Products", "UnitConversionFactor", "INTEGER NOT NULL DEFAULT 1");
         AddColumnIfMissing(cn, "CashTransactions", "CustomerId", "INTEGER");
         AddColumnIfMissing(cn, "CashTransactions", "SupplierId", "INTEGER");
         AddColumnIfMissing(cn, "CashTransactions", "PaymentMethod", "TEXT");
