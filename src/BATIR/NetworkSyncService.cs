@@ -17,7 +17,7 @@ internal static class NetworkSyncService
         var length = await ReadInt64Async(stream, cancellationToken);
         if (length <= 0 || length > 2L * 1024 * 1024 * 1024) throw new InvalidDataException("حجم فایل پشتیبان نامعتبر است.");
         var temp = targetPath + ".incoming";
-        await using (var file = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, 65536, true))
+        using (var file = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, 65536, true))
         {
             await CopyExactlyAsync(stream, file, length, cancellationToken);
         }
@@ -26,7 +26,8 @@ internal static class NetworkSyncService
             File.Delete(temp);
             throw new InvalidDataException("پشتیبان دریافتی از شبکه معتبر نیست.");
         }
-        File.Move(temp, targetPath, true);
+        if (File.Exists(targetPath)) File.Delete(targetPath);
+        File.Move(temp, targetPath);
     }
 
     public static async Task SendBackupAsync(string host, string backupPath, CancellationToken cancellationToken = default)
@@ -38,7 +39,7 @@ internal static class NetworkSyncService
         using var stream = client.GetStream();
         var info = new FileInfo(backupPath);
         await WriteInt64Async(stream, info.Length, cancellationToken);
-        await using var file = new FileStream(backupPath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, true);
+        using var file = new FileStream(backupPath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, true);
         await file.CopyToAsync(stream, 65536, cancellationToken);
         await stream.FlushAsync(cancellationToken);
     }
