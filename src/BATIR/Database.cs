@@ -116,6 +116,19 @@ INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) VALUES
 ('AutoLockPasswordHash','',datetime('now'));";
         seed.ExecuteNonQuery();
 
+        // Persist the agreed feature baseline so enabled/disabled state survives
+        // application upgrades and is not dependent only on in-memory defaults.
+        foreach (var feature in FeatureSettings.Catalog)
+        {
+            using var featureSeed = cn.CreateCommand();
+            featureSeed.CommandText = @"INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt)
+VALUES(@key,@value,@date);";
+            featureSeed.Parameters.AddWithValue("@key", feature.Key);
+            featureSeed.Parameters.AddWithValue("@value", feature.Default ? "true" : "false");
+            featureSeed.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            featureSeed.ExecuteNonQuery();
+        }
+
         AddColumnIfMissing(cn, "Products", "UnitName", "TEXT NOT NULL DEFAULT 'عدد'");
         AddColumnIfMissing(cn, "Products", "SecondaryUnitName", "TEXT");
         AddColumnIfMissing(cn, "Products", "UnitConversionFactor", "INTEGER NOT NULL DEFAULT 1");
