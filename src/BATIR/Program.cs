@@ -19,7 +19,9 @@ namespace BATIR
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new MainForm());
+            var mainForm = new MainForm();
+            AppearanceService.Apply(mainForm);
+            Application.Run(mainForm);
         }
     }
 }
