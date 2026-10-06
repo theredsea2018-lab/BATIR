@@ -27,7 +27,7 @@ public class MainForm : Form
     readonly NumericUpDown invoicePaid = new() { Minimum = 0, Maximum = 999999999999 };
     readonly ComboBox paymentMethod = new();
     readonly Label status = new();
-    readonly Timer autoLockTimer = new() { Interval = 1000 };
+    readonly System.Windows.Forms.Timer autoLockTimer = new() { Interval = 1000 };
     DateTime lastActivity = DateTime.Now;
     bool lockDialogOpen = false;
     readonly DataTable invoiceItems = new();
