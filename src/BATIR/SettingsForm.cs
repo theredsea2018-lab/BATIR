@@ -29,13 +29,15 @@ public class SettingsForm : Form
         calendar.Items.AddRange(new object[] { "شمسی", "میلادی" }); calendar.DropDownStyle = ComboBoxStyle.DropDownList;
 
         var root = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(18) };
-        var table = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 2, RowCount = 10, AutoSize = true };
+        var table = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 2, RowCount = 11, AutoSize = true };
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35)); table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65));
         Add(table, "واحد پول", currency, 0); Add(table, "کد واحد پول", code, 1); Add(table, "زبان", language, 2); Add(table, "تقویم", calendar, 3);
         Add(table, "قفل خودکار (دقیقه، صفر=خاموش)", autoLock, 4); Add(table, "رمز قفل خودکار (جدید)", autoLockPassword, 5); Add(table, "تکرار رمز قفل", autoLockPasswordConfirm, 6);
         table.Controls.Add(persianDigits, 1, 7); table.Controls.Add(negativeStock, 1, 8);
         var print = new Button { Text = "چاپ فاکتور و چاپ برچسب بارکد", Dock = DockStyle.Fill, Height = 42 };
         print.Click += (_, _) => new PrintCenterForm().ShowDialog(this); table.Controls.Add(print, 1, 9);
+        var permissions = new Button { Text = "مدیریت نقش‌ها و سطح دسترسی کاربران", Dock = DockStyle.Fill, Height = 42 };
+        permissions.Click += (_, _) => new UserPermissionsForm().ShowDialog(this); table.Controls.Add(permissions, 1, 10);
         root.Controls.Add(table);
 
         var group = new GroupBox { Text = "فعال‌سازی امکانات پیشرفته — هر مورد با تیک فعال می‌شود", Dock = DockStyle.Top, Height = 420, Padding = new Padding(12), RightToLeft = RightToLeft.Yes };
