@@ -25,7 +25,7 @@ internal static class DatabaseSelfTest
                 if (reader.Read()) throw new InvalidOperationException("SQLite foreign_key_check found an invalid reference.");
             }
 
-            string[] tables = { "AuditLog", "DraftInvoice", "DraftInvoiceItems", "InventoryMovements", "CashShifts", "Settings" };
+            string[] tables = { "AuditLog", "DraftInvoice", "DraftInvoiceItems", "InventoryMovements", "CashShifts", "Settings", "UserRoles", "UserPermissions", "ApprovalRequests", "BankAccounts", "BankTransactions", "BankReconciliations", "Budgets", "Orders", "OrderItems", "Reminders", "FixedAssets", "TaxSettings", "TaxDocuments", "VoiceCommands", "OcrDocuments" };
             foreach (var name in tables) EnsureSchemaObject(cn, "table", name);
             string[] views = { "v_LowStockProducts", "v_StockValuation", "v_SalesProfit", "v_CustomerBalances", "v_SupplierBalances", "v_InventoryMovementSummary", "v_InventoryReconciliation" };
             string[] triggers = { "trg_InvoiceItems_PositiveQuantity", "trg_InvoiceItems_NonNegativeAmounts", "trg_DraftInvoiceItems_PositiveQuantity", "trg_ReturnItems_PositiveQuantity", "trg_InventoryAdjustment_ValidDifference", "trg_InventoryMovement_InvoiceItem", "trg_InventoryMovement_SalesReturn", "trg_InventoryMovement_PurchaseReturn", "trg_InventoryMovement_Adjustment", "trg_Products_ValidUnitFactor", "trg_Products_ValidUnitFactorUpdate", "trg_CashTransactions_PositiveAmount", "trg_CashShifts_NonNegative" };
@@ -43,6 +43,13 @@ internal static class DatabaseSelfTest
             {
                 settings.CommandText = "SELECT COUNT(*) FROM Settings WHERE Key IN ('InvoiceAutosave','BackupVerification','AutoLockMinutes','CurrencyName','DateCalendar');";
                 if (Convert.ToInt64(settings.ExecuteScalar()) < 5) throw new InvalidOperationException("Stage 3 safety settings are incomplete.");
+            }
+
+            using (var baseline = cn.CreateCommand())
+            {
+                baseline.CommandText = "SELECT Value FROM Settings WHERE Key='BATIRSpecVersion' LIMIT 1;";
+                var version = Convert.ToString(baseline.ExecuteScalar());
+                if (version != "1.0") throw new InvalidOperationException("BATIR stable specification baseline is missing.");
             }
 
             using (var query = cn.CreateCommand()) { query.CommandText = "SELECT COUNT(*) FROM Products;"; _ = Convert.ToInt64(query.ExecuteScalar()); }
