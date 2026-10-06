@@ -33,12 +33,13 @@ public class SettingsForm : Form
         Add(table, "واحد پول", currency, 0); Add(table, "کد واحد پول", code, 1); Add(table, "زبان", language, 2); Add(table, "تقویم", calendar, 3);
         Add(table, "قفل خودکار (دقیقه، صفر=خاموش)", autoLock, 4); Add(table, "رمز قفل خودکار (جدید)", autoLockPassword, 5); Add(table, "تکرار رمز قفل", autoLockPasswordConfirm, 6);
         table.Controls.Add(persianDigits, 1, 7); table.Controls.Add(negativeStock, 1, 8);
-        var print = new Button { Text = "چاپ فاکتور و چاپ برچسب بارکد", Dock = DockStyle.Fill, Height = 42 }; print.Click += (_, _) => { if (PermissionService.Require("Settings.Edit", this)) new PrintCenterForm().ShowDialog(this); }; table.Controls.Add(print, 1, 9);
-        var permissions = new Button { Text = "مدیریت نقش‌ها و سطح دسترسی کاربران", Dock = DockStyle.Fill, Height = 42 }; permissions.Click += (_, _) => { if (PermissionService.Require("Users.Edit", this)) new UserPermissionsForm().ShowDialog(this); }; table.Controls.Add(permissions, 1, 10);
-        var approvals = new Button { Text = "مدیریت درخواست‌های تأیید عملیات", Dock = DockStyle.Fill, Height = 42 }; approvals.Click += (_, _) => new ApprovalRequestsForm().ShowDialog(this); table.Controls.Add(approvals, 1, 11);
-        var network = new Button { Text = "انتقال اطلاعات/پشتیبان در شبکه داخلی بدون اینترنت", Dock = DockStyle.Fill, Height = 42 }; network.Click += (_, _) => new NetworkSyncForm().ShowDialog(this); table.Controls.Add(network, 1, 12);
-        Add(table, "نقش فعال این کامپیوتر", currentRole, 13);
-        var advanced = new Button { Text = "مرکز امکانات پیشرفته: بانک، بودجه، نقدینگی، ممیزی و شبکه", Dock = DockStyle.Fill, Height = 42 }; advanced.Click += (_, _) => new AdvancedFeaturesForm().ShowDialog(this); table.Controls.Add(advanced, 1, 14);
+        var appearance = new Button { Text = "ظاهر برنامه: رنگ، فونت و عکس پس‌زمینه", Dock = DockStyle.Fill, Height = 42 }; appearance.Click += (_, _) => new AppearanceSettingsForm().ShowDialog(this); table.Controls.Add(appearance, 1, 9);
+        var print = new Button { Text = "چاپ فاکتور و چاپ برچسب بارکد", Dock = DockStyle.Fill, Height = 42 }; print.Click += (_, _) => { if (PermissionService.Require("Settings.Edit", this)) new PrintCenterForm().ShowDialog(this); }; table.Controls.Add(print, 1, 10);
+        var permissions = new Button { Text = "مدیریت نقش‌ها و سطح دسترسی کاربران", Dock = DockStyle.Fill, Height = 42 }; permissions.Click += (_, _) => { if (PermissionService.Require("Users.Edit", this)) new UserPermissionsForm().ShowDialog(this); }; table.Controls.Add(permissions, 1, 11);
+        var approvals = new Button { Text = "مدیریت درخواست‌های تأیید عملیات", Dock = DockStyle.Fill, Height = 42 }; approvals.Click += (_, _) => new ApprovalRequestsForm().ShowDialog(this); table.Controls.Add(approvals, 1, 12);
+        var network = new Button { Text = "انتقال اطلاعات/پشتیبان در شبکه داخلی بدون اینترنت", Dock = DockStyle.Fill, Height = 42 }; network.Click += (_, _) => new NetworkSyncForm().ShowDialog(this); table.Controls.Add(network, 1, 13);
+        Add(table, "نقش فعال این کامپیوتر", currentRole, 14);
+        var advanced = new Button { Text = "مرکز امکانات پیشرفته: بانک، بودجه، نقدینگی، ممیزی و شبکه", Dock = DockStyle.Fill, Height = 42 }; advanced.Click += (_, _) => new AdvancedFeaturesForm().ShowDialog(this); table.Controls.Add(advanced, 1, 15);
         root.Controls.Add(table);
 
         var group = new GroupBox { Text = "فعال‌سازی امکانات پیشرفته — هر مورد با تیک فعال می‌شود", Dock = DockStyle.Top, Height = 420, Padding = new Padding(12), RightToLeft = RightToLeft.Yes };
