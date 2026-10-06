@@ -202,6 +202,15 @@ public class MainForm : Form
         inventoryOpsButton.Click += (_,_) => new InventoryTransferForm().ShowDialog(this);
         inventoryOpsPage.Controls.Add(inventoryOpsButton); tabs.TabPages.Add(inventoryOpsPage);
 
+        if (FeatureSettings.IsEnabled("DueReminders", true))
+        {
+            var remindersPage = new TabPage("یادآوری سررسیدها");
+            var remindersButton = new Button { Text = "مدیریت بدهی، چک و سایر سررسیدها", Dock = DockStyle.Top, Height = 70 };
+            remindersButton.Click += (_, _) => new RemindersForm().ShowDialog(this);
+            remindersPage.Controls.Add(remindersButton);
+            tabs.TabPages.Add(remindersPage);
+        }
+
         var top = new Panel { Dock = DockStyle.Top, Height = 55 };
         var title = new Label { Text = "  باتیر | حسابداری و انبارداری", Dock = DockStyle.Left, Width = 350,
             Font = new Font("Tahoma", 14, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft };
