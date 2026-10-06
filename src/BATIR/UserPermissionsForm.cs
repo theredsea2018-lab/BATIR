@@ -73,10 +73,10 @@ public class UserPermissionsForm : Form
         if (rolesGrid.CurrentRow == null) return;
         selectedRoleId = Convert.ToInt64(rolesGrid.CurrentRow.Cells["Id"].Value);
         roleName.Text = Convert.ToString(rolesGrid.CurrentRow.Cells["نام نقش"].Value) ?? "";
-        var role = Database.Query("SELECT IsSystem FROM UserRoles WHERE Id=@id", new Dictionary<string, object?> { ["@id"] = selectedRoleId });
+        var role = Database.Query("SELECT IsSystem FROM UserRoles WHERE Id=@id", new SqliteParameter("@id", selectedRoleId));
         systemRole.Checked = role.Rows.Count > 0 && Convert.ToInt32(role.Rows[0]["IsSystem"]) == 1;
         var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var dt = Database.Query("SELECT PermissionKey FROM UserPermissions WHERE RoleId=@id AND Allowed=1", new Dictionary<string, object?> { ["@id"] = selectedRoleId });
+        var dt = Database.Query("SELECT PermissionKey FROM UserPermissions WHERE RoleId=@id AND Allowed=1", new SqliteParameter("@id", selectedRoleId));
         foreach (DataRow row in dt.Rows) allowed.Add(Convert.ToString(row["PermissionKey"]) ?? "");
         for (int i = 0; i < PermissionCatalog.Length; i++) permissions.SetItemChecked(i, allowed.Contains(PermissionCatalog[i].Key));
     }
@@ -102,7 +102,7 @@ public class UserPermissionsForm : Form
         }
         else
         {
-            var system = Convert.ToInt32(Database.Query("SELECT IsSystem FROM UserRoles WHERE Id=@id", new Dictionary<string, object?> { ["@id"] = id }).Rows[0]["IsSystem"]) == 1;
+            var system = Convert.ToInt32(Database.Query("SELECT IsSystem FROM UserRoles WHERE Id=@id", new SqliteParameter("@id", id)).Rows[0]["IsSystem"]) == 1;
             if (system && !name.Equals(Convert.ToString(rolesGrid.CurrentRow?.Cells["نام نقش"].Value), StringComparison.Ordinal))
             { MessageBox.Show("نام نقش سیستمی را تغییر ندهید."); return; }
             using var update = cn.CreateCommand(); update.Transaction = tx; update.CommandText = "UPDATE UserRoles SET Name=@name WHERE Id=@id";
