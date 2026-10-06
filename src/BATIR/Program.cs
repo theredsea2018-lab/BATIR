@@ -14,6 +14,9 @@ namespace BATIR
                 return;
             }
 
+            using (var db = Database.Open())
+                AdvancedFeaturesMigration.Run(db);
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new MainForm());
