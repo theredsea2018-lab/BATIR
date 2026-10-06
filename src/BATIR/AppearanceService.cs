@@ -14,7 +14,7 @@ internal static class AppearanceService
         if (!float.TryParse(sizeText, out var size) || size < 7 || size > 24) size = 9;
         form.Font = new Font(fontName, size, FontStyle.Regular);
         var back = Get("UiBackgroundColor", "");
-        if (Color.TryParse(back, out var color)) form.BackColor = color;
+        if (TryParseColor(back, out var color)) form.BackColor = color;
         var imagePath = Get("UiBackgroundImage", "");
         if (File.Exists(imagePath)) { try { using var source=Image.FromFile(imagePath); form.BackgroundImage=new Bitmap(source); form.BackgroundImageLayout=ImageLayout.Stretch; } catch { } }
     }
@@ -28,9 +28,9 @@ internal static class AppearanceService
     static string ColorToString(Color c)=>$"{c.R},{c.G},{c.B}";
 }
 
-internal static class ColorExtensions
+internal static class AppearanceColorParser
 {
-    public static bool TryParse(this Color _, string value, out Color color)
+    public static bool TryParseColor(string value, out Color color)
     {
         color=Color.Empty; var p=value.Split(','); if(p.Length!=3) return false; if(!int.TryParse(p[0],out var r)||!int.TryParse(p[1],out var g)||!int.TryParse(p[2],out var b)) return false; if(r<0||r>255||g<0||g>255||b<0||b>255)return false; color=Color.FromArgb(r,g,b); return true;
     }
