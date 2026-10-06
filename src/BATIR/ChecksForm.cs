@@ -196,6 +196,26 @@ VALUES(@d,@t,@a,@desc,'کاربر',@customer,@supplier,'چک','Check',@id)";
             mark.Parameters.AddWithValue("@id", id);
             mark.ExecuteNonQuery();
 
+            // هر چک ثبت‌شده یک یادآوری سررسید قابل پیگیری ایجاد/به‌روزرسانی می‌کند.
+            using (var reminder = cn.CreateCommand())
+            {
+                reminder.Transaction = tx;
+                reminder.CommandText = @"UPDATE Reminders SET Title=@title,DueDate=@due,Type=@type,PartyName=@party,Amount=@amount,Notes=@notes,Done=@done
+WHERE ReferenceType='Check' AND ReferenceId=@id;
+INSERT INTO Reminders(Title,DueDate,Type,PartyName,Amount,ReferenceType,ReferenceId,Done,Notes)
+SELECT @title,@due,@type,@party,@amount,'Check',@id,@done,@notes
+WHERE changes()=0;";
+                reminder.Parameters.AddWithValue("@title", "سررسید چک " + checkNo);
+                reminder.Parameters.AddWithValue("@due", due.Text.Trim());
+                reminder.Parameters.AddWithValue("@type", type.Text == "دریافتی" ? "چک دریافتی" : "چک پرداختی");
+                reminder.Parameters.AddWithValue("@party", partyName);
+                reminder.Parameters.AddWithValue("@amount", (long)amount.Value);
+                reminder.Parameters.AddWithValue("@id", id);
+                reminder.Parameters.AddWithValue("@done", state.Text == "وصول شد" || state.Text == "لغو شد" ? 1 : 0);
+                reminder.Parameters.AddWithValue("@notes", notes.Text.Trim());
+                reminder.ExecuteNonQuery();
+            }
+
             using var audit = cn.CreateCommand();
             audit.Transaction = tx;
             audit.CommandText = @"INSERT INTO AuditLog(DateText,UserName,Action,Entity,EntityId,Details)
