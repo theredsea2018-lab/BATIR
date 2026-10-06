@@ -116,6 +116,12 @@ INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) VALUES
 ('AutoLockPasswordHash','',datetime('now'));";
         seed.ExecuteNonQuery();
 
+        using (var baseline = cn.CreateCommand())
+        {
+            baseline.CommandText = @"INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) VALUES('BATIRSpecVersion','1.0',datetime('now'));";
+            baseline.ExecuteNonQuery();
+        }
+
         // Persist the agreed feature baseline so enabled/disabled state survives
         // application upgrades and is not dependent only on in-memory defaults.
         foreach (var feature in FeatureSettings.Catalog)
