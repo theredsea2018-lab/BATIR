@@ -72,6 +72,13 @@ CREATE INDEX IF NOT EXISTS IX_TaxDocuments_Invoice ON TaxDocuments(InvoiceId);
         seed.CommandText = "INSERT OR IGNORE INTO UserRoles(Name,IsSystem) VALUES ('مدیر',1),('فروشنده',1),('انباردار',1); INSERT OR IGNORE INTO TaxSettings(Id,Enabled) VALUES(1,0);";
         seed.ExecuteNonQuery();
 
+        var managerPermissions = new[] { "Products.View", "Products.Edit", "Sales.Create", "Sales.Return", "Purchases.Create", "Purchases.Return", "Customers.Edit", "Suppliers.Edit", "Checks.Edit", "Finance.Edit", "Inventory.Edit", "Reports.View", "Settings.Edit", "Backup.Restore", "Users.Edit", "Approvals.Approve", "Audit.View" };
+        var sellerPermissions = new[] { "Products.View", "Sales.Create", "Sales.Return", "Customers.Edit", "Checks.Edit", "Reports.View" };
+        var warehousePermissions = new[] { "Products.View", "Products.Edit", "Inventory.Edit", "Reports.View" };
+        SeedPermissions(cn, "مدیر", managerPermissions);
+        SeedPermissions(cn, "فروشنده", sellerPermissions);
+        SeedPermissions(cn, "انباردار", warehousePermissions);
+
         using var settings = cn.CreateCommand();
         settings.CommandText = "SELECT COUNT(*) FROM Settings WHERE Key=@key";
         foreach (var item in FeatureSettings.Catalog)
@@ -83,6 +90,21 @@ CREATE INDEX IF NOT EXISTS IX_TaxDocuments_Invoice ON TaxDocuments(InvoiceId);
                 add.CommandText = "INSERT INTO Settings(Key,Value,UpdatedAt) VALUES(@key,@value,datetime('now'))";
                 add.Parameters.AddWithValue("@key", item.Key); add.Parameters.AddWithValue("@value", item.Default ? "true" : "false"); add.ExecuteNonQuery();
             }
+        }
+
+        using var roleSetting = cn.CreateCommand();
+        roleSetting.CommandText = "INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) SELECT 'CurrentRoleId',CAST(Id AS TEXT),datetime('now') FROM UserRoles WHERE Name='مدیر';";
+        roleSetting.ExecuteNonQuery();
+    }
+
+    static void SeedPermissions(SqliteConnection cn, string roleName, IEnumerable<string> permissions)
+    {
+        using var role = cn.CreateCommand(); role.CommandText = "SELECT Id FROM UserRoles WHERE Name=@name LIMIT 1"; role.Parameters.AddWithValue("@name", roleName);
+        var value = role.ExecuteScalar(); if (value == null) return; var roleId = Convert.ToInt64(value);
+        foreach (var key in permissions)
+        {
+            using var add = cn.CreateCommand(); add.CommandText = "INSERT INTO UserPermissions(RoleId,PermissionKey,Allowed) VALUES(@role,@key,1) ON CONFLICT(RoleId,PermissionKey) DO UPDATE SET Allowed=1";
+            add.Parameters.AddWithValue("@role", roleId); add.Parameters.AddWithValue("@key", key); add.ExecuteNonQuery();
         }
     }
 }
