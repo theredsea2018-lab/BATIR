@@ -556,7 +556,7 @@ VALUES(@code,@barcode,@name,@brand,@category,@purchase,@sale,@stock,@date,@unit,
             new SqliteParameter("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")),
             new SqliteParameter("@unit", string.IsNullOrWhiteSpace(unitName.Text) ? "عدد" : unitName.Text.Trim()),
             new SqliteParameter("@secondary", string.IsNullOrWhiteSpace(secondaryUnitName.Text) ? (object)DBNull.Value : secondaryUnitName.Text.Trim()),
-            new SqliteParameter("@factor", (long)unitFactor.Value)));
+            new SqliteParameter("@factor", (long)unitFactor.Value));
         name.Clear(); barcode.Clear(); brand.Clear(); category.Clear(); unitName.Clear(); secondaryUnitName.Clear(); unitFactor.Value = 1; purchase.Value = 0; sale.Value = 0; stock.Value = 0;
         LoadProducts();
     }
