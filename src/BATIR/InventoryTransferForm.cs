@@ -55,6 +55,7 @@ public class InventoryTransferForm : Form
     }
     void Save()
     {
+        if (!PermissionService.Require("Inventory.Edit", this)) return;
         if(!(product.SelectedItem is ProductItem p)){MessageBox.Show("کالا را انتخاب کنید.");return;}
         if(!long.TryParse(quantity.Text.Replace(",","").Replace("٬","").Trim(),out var diff)||diff==0){MessageBox.Show("مقدار مثبت یا منفی وارد کنید.");return;}
         try
