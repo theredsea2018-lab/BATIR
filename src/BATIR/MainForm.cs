@@ -412,6 +412,7 @@ CreditLimit AS [سقف اعتبار], Balance AS [مانده بدهکار] FROM 
 
     void SaveCustomer()
     {
+        if (!PermissionService.Require("Customers.Edit", this)) return;
         if (string.IsNullOrWhiteSpace(customerName.Text))
         {
             MessageBox.Show("نام مشتری را وارد کنید.");
@@ -448,6 +449,7 @@ CreditLimit=@limit,Notes=@notes,PriceTier=@tier WHERE Id=@id",
 
     void RecordCustomerPayment()
     {
+        if (!PermissionService.Require("Finance.Edit", this)) return;
         if (editingCustomerId == 0)
         {
             MessageBox.Show("ابتدا مشتری را از جدول انتخاب کنید.");
