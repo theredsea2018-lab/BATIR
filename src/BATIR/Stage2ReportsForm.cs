@@ -91,6 +91,8 @@ public sealed class Stage2ReportsForm : Form
         top.Controls.Add(pricePercent, 1, 1);
         var refresh = new Button { Text = "نمایش کالاها", Dock = DockStyle.Fill }; refresh.Click += (_, _) => LoadPrices();
         top.Controls.Add(refresh, 2, 1);
+        var rollback = new Button { Text = "برگشت آخرین تغییر قیمت", Dock = DockStyle.Fill }; rollback.Click += (_, _) => RollbackLastPriceBatch();
+        top.Controls.Add(rollback, 3, 1);
         p.Controls.Add(priceGrid); p.Controls.Add(top);
         return p;
     }
@@ -198,6 +200,25 @@ PurchasePrice AS [خرید],SalePrice AS [فروش] FROM Products WHERE Active=1
             if (!string.IsNullOrWhiteSpace(f)) { where += " AND (Name LIKE @q OR Barcode LIKE @q OR Brand LIKE @q OR Category LIKE @q)"; cmd.Parameters.AddWithValue("@q","%"+f+"%"); }
             var factor = 1m + pct/100m;
             var mode = priceMode.SelectedItem?.ToString() ?? "قیمت فروش";
+            var batchId = Guid.NewGuid().ToString("N");
+            using (var snapshot = cn.CreateCommand())
+            {
+                snapshot.Transaction = tx;
+                snapshot.CommandText = $"SELECT Id,PurchasePrice,SalePrice FROM Products WHERE {where}";
+                using var reader = snapshot.ExecuteReader();
+                var rows = new List<(long Id,long Purchase,long Sale)>();
+                while (reader.Read()) rows.Add((reader.GetInt64(0), reader.GetInt64(1), reader.GetInt64(2)));
+                foreach (var row in rows)
+                {
+                    var np = mode == "قیمت فروش" ? row.Purchase : (long)Math.Round(row.Purchase * factor, MidpointRounding.AwayFromZero);
+                    var ns = mode == "قیمت خرید" ? row.Sale : (long)Math.Round(row.Sale * factor, MidpointRounding.AwayFromZero);
+                    if (mode == "هر دو") { np = (long)Math.Round(row.Purchase * factor, MidpointRounding.AwayFromZero); ns = (long)Math.Round(row.Sale * factor, MidpointRounding.AwayFromZero); }
+                    using var h = cn.CreateCommand(); h.Transaction = tx;
+                    h.CommandText = "INSERT INTO PriceChangeHistory(BatchId,ProductId,ChangedAt,UserName,Mode,OldPurchasePrice,NewPurchasePrice,OldSalePrice,NewSalePrice) VALUES(@b,@p,@d,'کاربر',@m,@op,@np,@os,@ns)";
+                    h.Parameters.AddWithValue("@b",batchId); h.Parameters.AddWithValue("@p",row.Id); h.Parameters.AddWithValue("@d",DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")); h.Parameters.AddWithValue("@m",mode);
+                    h.Parameters.AddWithValue("@op",row.Purchase); h.Parameters.AddWithValue("@np",np); h.Parameters.AddWithValue("@os",row.Sale); h.Parameters.AddWithValue("@ns",ns); h.ExecuteNonQuery();
+                }
+            }
             cmd.CommandText = mode switch
             {
                 "قیمت خرید" => $"UPDATE Products SET PurchasePrice=CAST(ROUND(PurchasePrice*{factor.ToString(System.Globalization.CultureInfo.InvariantCulture)},0) AS INTEGER) WHERE {where};",
@@ -210,7 +231,7 @@ PurchasePrice AS [خرید],SalePrice AS [فروش] FROM Products WHERE Active=1
             audit.CommandText=@"INSERT INTO AuditLog(DateText,UserName,Action,Entity,EntityId,Details)
 VALUES(@d,'کاربر','تغییر گروهی قیمت','Products',NULL,@details);";
             audit.Parameters.AddWithValue("@d",DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-            audit.Parameters.AddWithValue("@details",$"درصد: {pct} | نوع: {mode} | فیلتر: {f} | تعداد: {affected}");
+            audit.Parameters.AddWithValue("@details",$"شناسه تغییر: {batchId} | درصد: {pct} | نوع: {mode} | فیلتر: {f} | تعداد: {affected}");
             audit.ExecuteNonQuery();
             tx.Commit();
             MessageBox.Show($"تغییر قیمت برای {affected} کالا انجام شد.");
