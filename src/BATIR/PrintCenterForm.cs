@@ -63,7 +63,7 @@ public sealed class PrintCenterForm : Form
     }
 
     void Preview(){try{Prepare();using var d=new PrintPreviewDialog{Document=document,Width=1100,Height=800};d.ShowDialog(this);}catch(Exception ex){MessageBox.Show(ex.Message,"BATIR");}}
-    void Print(){try{Prepare();using var d=new PrintDialog{Document=document,UseEXDialog=true};if(d.ShowDialog(this)!=DialogResult.OK)return;document.PrintController=new StandardPrintController();document.Print();}catch(Exception ex){MessageBox.Show("چاپ انجام نشد.\n"+ex.Message,"BATIR");}}
+    void Print(){if(!PermissionService.Require("Sales.Print", this)) return; try{Prepare();using var d=new PrintDialog{Document=document,UseEXDialog=true};if(d.ShowDialog(this)!=DialogResult.OK)return;document.PrintController=new StandardPrintController();document.Print();}catch(Exception ex){MessageBox.Show("چاپ انجام نشد.\n"+ex.Message,"BATIR");}}
 
     void PrintPage(object? sender,PrintPageEventArgs e)
     {
