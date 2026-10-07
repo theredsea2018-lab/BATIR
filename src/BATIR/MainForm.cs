@@ -574,6 +574,12 @@ VALUES(@code,@barcode,@name,@brand,@category,@purchase,@sale,@stock,@date,@unit,
         LoadProducts();
     }
 
+    static decimal GetMinimumSaleMarginPercent()
+    {
+        var dt = Database.Query("SELECT Value FROM Settings WHERE Key='MinimumSaleMarginPercent' LIMIT 1");
+        return dt.Rows.Count > 0 && decimal.TryParse(Convert.ToString(dt.Rows[0]["Value"]), out var value) ? Math.Max(0, value) : 0;
+    }
+
     bool NegativeStockAllowed()
     {
         var dt = Database.Query("SELECT Value FROM Settings WHERE Key='NegativeStockAllowed' LIMIT 1");
@@ -730,6 +736,26 @@ VALUES(@product,@name,@qty,@price,@discount)";
         long outstanding = total - paid;
         if (paymentMethod.SelectedItem?.ToString() == "اعتباری" && outstanding == 0)
             paymentMethod.SelectedIndex = 0;
+        var minMargin = GetMinimumSaleMarginPercent();
+        if (minMargin > 0 && !PermissionService.Has("Sales.OverrideMinimumPrice"))
+        {
+            foreach (DataRow row in invoiceItems.Rows)
+            {
+                var productId = Convert.ToInt64(row["ProductId"]);
+                var unitPrice = Convert.ToInt64(row["فی"]);
+                var qty = Math.Max(1, Convert.ToInt64(row["تعداد"]));
+                var discount = Convert.ToInt64(row["تخفیف"]);
+                var effective = unitPrice - discount / qty;
+                var purchase = Convert.ToInt64(Database.Query("SELECT PurchasePrice FROM Products WHERE Id=@id", new SqliteParameter("@id", productId)).Rows[0]["PurchasePrice"]);
+                var minimum = (long)Math.Ceiling(purchase * (1m + minMargin / 100m));
+                if (effective < minimum)
+                {
+                    MessageBox.Show("این فاکتور شامل فروش زیر حداقل قیمت مجاز است. برای ادامه، مدیر باید مجوز Sales.OverrideMinimumPrice داشته باشد.", "کنترل حداقل قیمت", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+            }
+        }
+
         try
         {
             using var cn = Database.Open();
