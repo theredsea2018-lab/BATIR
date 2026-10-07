@@ -591,6 +591,29 @@ VALUES(@code,@barcode,@name,@brand,@category,@purchase,@sale,@stock,@date,@unit,
         return dt.Rows.Count > 0 && string.Equals(Convert.ToString(dt.Rows[0]["Value"]), "true", StringComparison.OrdinalIgnoreCase);
     }
 
+
+    long ResolveCustomerTierPrice(long productId, long baseSalePrice)
+    {
+        var customer = customerName.Text.Trim();
+        if (string.IsNullOrWhiteSpace(customer)) return baseSalePrice;
+        var tierTable = Database.Query("SELECT PriceTier FROM Customers WHERE Name=@name LIMIT 1",
+            new SqliteParameter("@name", customer));
+        var tier = tierTable.Rows.Count > 0
+            ? (Convert.ToString(tierTable.Rows[0]["PriceTier"]) ?? "Normal")
+            : "Normal";
+        var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        var price = Database.Query(@"SELECT Price FROM ProductTierPrices
+WHERE ProductId=@product AND PriceTier=@tier AND Active=1
+AND (FromDate IS NULL OR FromDate='' OR FromDate<=@now)
+AND (ToDate IS NULL OR ToDate='' OR ToDate>=@now)
+ORDER BY CASE WHEN FromDate IS NULL OR FromDate='' THEN 1 ELSE 0 END,
+         FromDate DESC, Id DESC LIMIT 1",
+            new SqliteParameter("@product", productId),
+            new SqliteParameter("@tier", tier),
+            new SqliteParameter("@now", now));
+        return price.Rows.Count > 0 ? Convert.ToInt64(price.Rows[0]["Price"]) : baseSalePrice;
+    }
+
     void AddInvoiceItem(object? sender, EventArgs e)
     {
         var q = invoiceSearch.Text.Trim();
