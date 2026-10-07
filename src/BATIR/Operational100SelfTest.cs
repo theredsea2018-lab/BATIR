@@ -22,7 +22,7 @@ internal static class Operational100SelfTest
                 Exec(cn, tx, "INSERT INTO AuditLog(DateText,UserName,Action,Entity,Details) VALUES(datetime('now'),'self-test','100-op','Operational100',@d);", ("@d", "round-" + round)); // 1
                 var auditId = Scalar(cn, tx, "SELECT last_insert_rowid();"); // 2
                 Exec(cn, tx, "UPDATE AuditLog SET Details=@d WHERE Id=@id;", ("@d", "round-" + round + "-updated"), ("@id", auditId)); // 3
-                Require(Convert.ToString(Scalar(cn, tx, "SELECT Details FROM AuditLog WHERE Id=@id;", ("@id", auditId)))?.EndsWith("-updated") == true, "Audit update"); // 4
+                Require((TextScalar(cn, tx, "SELECT Details FROM AuditLog WHERE Id=@id;", ("@id", auditId)) ?? "").EndsWith("-updated"), "Audit update"); // 4
 
                 Exec(cn, tx, "INSERT INTO Settings(Key,Value,UpdatedAt) VALUES(@k,'one',datetime('now'));", ("@k", key)); // 5
                 Require(Convert.ToString(Scalar(cn, tx, "SELECT Value FROM Settings WHERE Key=@k;", ("@k", key))) == "one", "Setting insert"); // 6
@@ -60,6 +60,16 @@ internal static class Operational100SelfTest
         cmd.CommandText = sql;
         foreach (var p in parameters) cmd.Parameters.AddWithValue(p.Key, p.Value ?? DBNull.Value);
         cmd.ExecuteNonQuery();
+    }
+
+    static string? TextScalar(SqliteConnection cn, SqliteTransaction tx, string sql, params (string Key, object Value)[] parameters)
+    {
+        using var cmd = cn.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = sql;
+        foreach (var p in parameters) cmd.Parameters.AddWithValue(p.Key, p.Value ?? DBNull.Value);
+        var value = cmd.ExecuteScalar();
+        return value == null || value == DBNull.Value ? null : Convert.ToString(value);
     }
 
     static long Scalar(SqliteConnection cn, SqliteTransaction tx, string sql, params (string Key, object Value)[] parameters)
