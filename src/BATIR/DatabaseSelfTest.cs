@@ -9,6 +9,7 @@ internal static class DatabaseSelfTest
         try
         {
             using var cn = Database.Open();
+            AdvancedFeaturesMigration.Run(cn);
             using (var integrity = cn.CreateCommand())
             {
                 integrity.CommandText = "PRAGMA integrity_check;";
