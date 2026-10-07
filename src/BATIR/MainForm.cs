@@ -218,7 +218,8 @@ public class MainForm : Form
             Font = new Font("Tahoma", 14, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft };
         var restore = new Button { Text = "بازیابی پشتیبان", Dock = DockStyle.Right, Width = 120 };
         restore.Click += (_, _) => RestoreBackup();
-        var verify = new Button { Text = "بررسی پشتیبان", Dock = DockStyle.Right, Width = 120 };
+        var verify = new Button {
+        if(!PermissionService.Require("Backup.Create", this)) return; Text = "بررسی پشتیبان", Dock = DockStyle.Right, Width = 120 };
         verify.Click += (_, _) => VerifyBackup();
         var backup = new Button { Text = "پشتیبان‌گیری", Dock = DockStyle.Right, Width = 120 };
         backup.Click += (_, _) => Backup();
