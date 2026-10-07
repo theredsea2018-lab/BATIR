@@ -44,10 +44,10 @@ jobs:
         run: '& "src/BATIR/bin/Any CPU/Release/net48/BATIR.exe" --self-test'
 
       - name: Operational 100 smoke test
-        run: '& "src/BATIR/bin/Any CPU/Release/BATIR.exe" --self-test-100'
+        run: '& "src/BATIR/bin/Any CPU/Release/net48/BATIR.exe" --self-test-100'
 
       - name: Operational 500 smoke test
-        run: '& "src/BATIR/bin/Any CPU/Release/BATIR.exe" --self-test-500'
+        run: '& "src/BATIR/bin/Any CPU/Release/net48/BATIR.exe" --self-test-500'
 
       - name: Stage 6 Windows smoke test
         shell: pwsh
