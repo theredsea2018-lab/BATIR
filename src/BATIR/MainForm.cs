@@ -970,6 +970,7 @@ VALUES(@date,'SalePayment',@amount,@description,'کاربر',@customer,@method,'
 
     void Backup()
     {
+        if (!PermissionService.Require("Backup.Create", this)) return;
         try
         {
             using var s = new SaveFileDialog { Filter = "BATIR Database (*.db)|*.db", FileName = "BATIR-Backup.db" };
