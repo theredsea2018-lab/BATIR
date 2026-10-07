@@ -163,4 +163,4 @@ CREATE INDEX IF NOT EXISTS IX_ProductTierPrices_ProductTier ON ProductTierPrices
         upsert.ExecuteNonQuery();
         return generated;
     }
-
+}
