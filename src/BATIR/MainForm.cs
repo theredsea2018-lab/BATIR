@@ -921,6 +921,7 @@ VALUES(@date,'SalePayment',@amount,@description,'کاربر',@customer,@method,'
 
     void VerifyBackup()
     {
+        if (!PermissionService.Require("Backup.Create", this)) return;
         try
         {
             using var s = new OpenFileDialog { Filter = "BATIR Database (*.db)|*.db", Title = "انتخاب فایل پشتیبان برای بررسی" };
@@ -939,6 +940,7 @@ VALUES(@date,'SalePayment',@amount,@description,'کاربر',@customer,@method,'
 
     void RestoreBackup()
     {
+        if (!PermissionService.Require("Backup.Restore", this)) return;
         try
         {
             using var s = new OpenFileDialog { Filter = "BATIR Database (*.db)|*.db", Title = "انتخاب فایل پشتیبان برای بازیابی" };
