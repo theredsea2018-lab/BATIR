@@ -333,8 +333,8 @@ public class MainForm : Form
         AddText(form, "آدرس", customerAddress, 2, 0);
         AddNum(form, "سقف اعتبار", customerCreditLimit, 3, 0);
         customerPriceTier.Items.AddRange(new object[] { "Normal", "Wholesale", "Partner", "Representative", "Special" }); customerPriceTier.SelectedIndex = 0;
-        AddText(form, "نوع قیمت", customerPriceTier, 0, 1);
-        AddText(form, "توضیحات", customerNotes, 0, 1);
+        AddCombo(form, "نوع قیمت", customerPriceTier, 0, 1);
+        AddText(form, "توضیحات", customerNotes, 1, 1);
 
         var save = new Button { Text = "ثبت / ویرایش مشتری", Dock = DockStyle.Fill };
         save.Click += (_, _) => SaveCustomer();
@@ -701,7 +701,7 @@ FROM DraftInvoiceItems ORDER BY Id");
             if (invoiceItems.Rows.Count > 0)
                 status.Text = "پیش‌نویس فاکتور از آخرین جلسه بازیابی شد | ریال";
         }
-        catch (Exception ex)
+        catch
         {
             status.Text = "هشدار: بازیابی پیش‌نویس انجام نشد";
         }
