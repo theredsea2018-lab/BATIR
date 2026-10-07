@@ -656,6 +656,11 @@ WHERE Active=1 AND (Barcode=@q OR Name LIKE @like) ORDER BY CASE WHEN Barcode=@q
         }
 
         long discount = (long)invoiceDiscount.Value;
+        if (discount > qty * price)
+        {
+            MessageBox.Show("تخفیف نمی‌تواند بیشتر از مبلغ ردیف کالا باشد.");
+            return;
+        }
         var newRow = invoiceItems.NewRow();
         newRow["ProductId"] = id; newRow["نام کالا"] = productName; newRow["تعداد"] = qty;
         newRow["فی"] = price; newRow["تخفیف"] = discount; newRow["جمع"] = qty * price - discount;
@@ -759,11 +764,17 @@ VALUES(@product,@name,@qty,@price,@discount)";
         if (invoiceItems.Rows.Count == 0) { MessageBox.Show("فاکتور خالی است."); return; }
 
         long total = InvoiceTotal();
+        if (total < 0) { MessageBox.Show("مبلغ نهایی فاکتور نمی‌تواند منفی باشد."); return; }
         long paid = (long)invoicePaid.Value;
         if (paid > total) { MessageBox.Show("مبلغ پرداختی نمی‌تواند بیشتر از مبلغ فاکتور باشد."); return; }
         long outstanding = total - paid;
         if (paymentMethod.SelectedItem?.ToString() == "اعتباری" && outstanding == 0)
             paymentMethod.SelectedIndex = 0;
+        if (paymentMethod.SelectedItem?.ToString() == "اعتباری" && string.IsNullOrWhiteSpace(customerName.Text))
+        {
+            MessageBox.Show("برای فروش اعتباری باید مشتری مشخص شود.");
+            return;
+        }
         var minMargin = GetMinimumSaleMarginPercent();
         if (minMargin > 0 && !PermissionService.Has("Sales.OverrideMinimumPrice"))
         {
