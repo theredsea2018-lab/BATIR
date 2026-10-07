@@ -32,11 +32,11 @@ internal static class NetworkSyncService
                 File.Delete(temp);
                 throw new InvalidDataException("پشتیبان دریافتی از شبکه معتبر نیست.");
             }
+            var actualHash = HexToBytes(Sha256(temp));
+            if (!CryptographicOperations.FixedTimeEquals(expectedHash, actualHash) || !CryptographicOperations.FixedTimeEquals(expectedMac, ComputeMac(actualHash)))
+            { File.Delete(temp); throw new InvalidDataException("صحت یا کلید پشتیبان شبکه تأیید نشد."); }
             if (File.Exists(targetPath)) File.Delete(targetPath);
             File.Move(temp, targetPath);
-            var actualHash = Convert.FromHexString(Sha256(targetPath));
-            if (!CryptographicOperations.FixedTimeEquals(expectedHash, actualHash) || !CryptographicOperations.FixedTimeEquals(expectedMac, ComputeMac(actualHash)))
-            { File.Delete(targetPath); throw new InvalidDataException("صحت یا کلید پشتیبان شبکه تأیید نشد."); }
         }
         finally
         {
@@ -52,7 +52,7 @@ internal static class NetworkSyncService
         await client.ConnectAsync(host, Port);
         using var stream = client.GetStream();
         var info = new FileInfo(backupPath);
-        var hash = Convert.FromHexString(Sha256(backupPath));
+        var hash = HexToBytes(Sha256(backupPath));
         var mac = ComputeMac(hash);
         await stream.WriteAsync(Encoding.ASCII.GetBytes("BAT1"), 0, 4, cancellationToken);
         await stream.WriteAsync(hash, 0, hash.Length, cancellationToken);
@@ -61,6 +61,13 @@ internal static class NetworkSyncService
         using var file = new FileStream(backupPath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, true);
         await file.CopyToAsync(stream, 65536, cancellationToken);
         await stream.FlushAsync(cancellationToken);
+    }
+
+    static byte[] HexToBytes(string hex)
+    {
+        var bytes = new byte[hex.Length / 2];
+        for (var i = 0; i < bytes.Length; i++) bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+        return bytes;
     }
 
     static byte[] ComputeMac(byte[] data)
