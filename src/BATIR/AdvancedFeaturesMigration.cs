@@ -87,7 +87,7 @@ CREATE INDEX IF NOT EXISTS IX_PriceChangeHistory_Batch ON PriceChangeHistory(Bat
         seed.CommandText = "INSERT OR IGNORE INTO UserRoles(Name,IsSystem) VALUES ('مدیر',1),('فروشنده',1),('انباردار',1); INSERT OR IGNORE INTO TaxSettings(Id,Enabled) VALUES(1,0);";
         seed.ExecuteNonQuery();
 
-        var managerPermissions = new[] { "Products.View", "Products.Edit", "Sales.Create", "Sales.Return", "Purchases.Create", "Purchases.Return", "Customers.Edit", "Suppliers.Edit", "Checks.Edit", "Finance.Edit", "Inventory.Edit", "Reports.View", "Settings.Edit", "Backup.Restore", "Users.Edit", "Approvals.Approve", "Audit.View", "Sales.Print", "Purchases.Print", "Backup.Create" };
+        var managerPermissions = new[] { "Products.View", "Products.Edit", "Sales.Create", "Sales.Return", "Purchases.Create", "Purchases.Return", "Customers.Edit", "Suppliers.Edit", "Checks.Edit", "Finance.Edit", "Inventory.Edit", "Reports.View", "Settings.Edit", "Backup.Restore", "Users.Edit", "Approvals.Approve", "Audit.View", "Sales.Print", "Purchases.Print", "Backup.Create", "Sales.OverrideMinimumPrice" };
         var sellerPermissions = new[] { "Products.View", "Sales.Create", "Sales.Return", "Customers.Edit", "Checks.Edit", "Reports.View", "Sales.Print", "Purchases.Print" };
         var warehousePermissions = new[] { "Products.View", "Products.Edit", "Inventory.Edit", "Reports.View" };
         SeedPermissions(cn, "مدیر", managerPermissions);
@@ -107,7 +107,7 @@ CREATE INDEX IF NOT EXISTS IX_PriceChangeHistory_Batch ON PriceChangeHistory(Bat
             }
         }
 
-        foreach (var item in new[] { ("AutoBackupEnabled", "1"), ("AutoBackupIntervalHours", "24"), ("AutoBackupRetention", "7"), ("NetworkSyncKey", "BATIR-LAN-DEFAULT-CHANGE-ME") })
+        foreach (var item in new[] { ("AutoBackupEnabled", "1"), ("AutoBackupIntervalHours", "24"), ("AutoBackupRetention", "7"), ("NetworkSyncKey", "BATIR-LAN-DEFAULT-CHANGE-ME"), ("MinimumSaleMarginPercent", "0") })
         {
             using var addSetting = cn.CreateCommand();
             addSetting.CommandText = "INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) VALUES(@key,@value,datetime('now'))";
