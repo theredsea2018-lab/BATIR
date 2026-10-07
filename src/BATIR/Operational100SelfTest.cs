@@ -9,6 +9,7 @@ internal static class Operational100SelfTest
         try
         {
             using var cn = Database.Open();
+            AdvancedFeaturesMigration.Run(cn);
             for (var round = 1; round <= 5; round++)
             {
                 using var tx = cn.BeginTransaction();
