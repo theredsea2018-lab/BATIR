@@ -11,7 +11,7 @@ public class NetworkSyncForm : Form
     {
         Text = "BATIR | انتقال شبکه داخلی بدون اینترنت"; Width = 720; Height = 330;
         StartPosition = FormStartPosition.CenterParent; RightToLeft = RightToLeft.Yes; RightToLeftLayout = true;
-        var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(18), ColumnCount = 2, RowCount = 5 };
+        var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(18), ColumnCount = 2, RowCount = 7 };
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35)); root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65));
         root.Controls.Add(new Label { Text = "IP کامپیوتر مقصد", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight }, 0, 0);
         peer.Dock = DockStyle.Fill; peer.Text = "192.168.1."; root.Controls.Add(peer, 1, 0);
@@ -43,6 +43,38 @@ public class NetworkSyncForm : Form
             status.Text = "ارسال با موفقیت انجام شد. SHA-256: " + NetworkSyncService.Sha256(backupPath.Text.Trim());
         }
         catch (Exception ex) { status.Text = "ارسال ناموفق: " + ex.Message; }
+    }
+
+
+    async void SendLedger(object? sender, EventArgs e)
+    {
+        if (!FeatureSettings.IsEnabled("MultiComputerLedger", true)) { MessageBox.Show(this, "همگام‌سازی حساب چندکامپیوتر در تنظیمات خاموش است."); return; }
+        if (!PermissionService.Require("NetworkSync.Send", this)) return;
+        if (string.IsNullOrWhiteSpace(peer.Text)) { MessageBox.Show(this, "IP مقصد را مشخص کنید."); return; }
+        try
+        {
+            var count = NetworkLedgerSyncService.PendingCount();
+            if (count == 0) { status.Text = "فاکتور همگام‌نشده‌ای برای ارسال وجود ندارد."; return; }
+            status.Text = "در حال ارسال " + count + " عملیات فاکتور...";
+            await NetworkLedgerSyncService.SendPendingAsync(peer.Text.Trim());
+            status.Text = "ارسال فاکتورها با موفقیت تأیید شد.";
+        }
+        catch (Exception ex) { status.Text = "ارسال فاکتورهای شبکه ناموفق: " + ex.Message; }
+    }
+
+    async void ReceiveLedger(object? sender, EventArgs e)
+    {
+        if (!FeatureSettings.IsEnabled("MultiComputerLedger", true)) { MessageBox.Show(this, "همگام‌سازی حساب چندکامپیوتر در تنظیمات خاموش است."); return; }
+        if (!PermissionService.Require("NetworkSync.Receive", this)) return;
+        receiverCts?.Cancel();
+        receiverCts = new CancellationTokenSource();
+        try
+        {
+            status.Text = "در حال انتظار برای دریافت فاکتورهای شبکه...";
+            var applied = await NetworkLedgerSyncService.ReceiveAndApplyAsync(receiverCts.Token);
+            status.Text = "دریافت پایان یافت؛ " + applied + " فاکتور جدید ثبت شد.";
+        }
+        catch (Exception ex) { status.Text = "دریافت فاکتورهای شبکه ناموفق: " + ex.Message; }
     }
 
     async void Receive(object? sender, EventArgs e)
