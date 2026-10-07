@@ -90,6 +90,7 @@ public class UserPermissionsForm : Form
 
     void SaveRole()
     {
+        if (!PermissionService.Require("Users.Edit", this)) return;
         var name = roleName.Text.Trim();
         if (name.Length == 0) { MessageBox.Show("نام نقش را وارد کنید."); return; }
         using var cn = Database.Open(); using var tx = cn.BeginTransaction();
