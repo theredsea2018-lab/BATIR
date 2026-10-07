@@ -38,7 +38,8 @@ internal static class Operational100SelfTest
                 Exec(cn, tx, "INSERT INTO Invoices(InvoiceNo,Type,CustomerId,UserName,DateText,Total,Paid,Notes) VALUES(@no,'فروش',@customer,'self-test',datetime('now'),150,0,@note);", ("@no", "TEST-" + suffix), ("@customer", customerId), ("@note", suffix)); // 15
                 invoiceId = Scalar(cn, tx, "SELECT last_insert_rowid();"); // 16
                 Exec(cn, tx, "INSERT INTO InvoiceItems(InvoiceId,ProductId,Quantity,UnitPrice,CostPrice,Discount) VALUES(@invoice,@product,1,150,100,0);", ("@invoice", invoiceId), ("@product", productId)); // 17
-                Require(Convert.ToInt64(Scalar(cn, tx, "SELECT COUNT(*) FROM InvoiceItems WHERE InvoiceId=@invoice AND ProductId=@product;", ("@invoice", invoiceId))) == 1, "Invoice item insert"); // 18
+                Require(Convert.ToInt64(Scalar(cn, tx, "SELECT COUNT(*) FROM InvoiceItems WHERE InvoiceId=@invoice AND ProductId=@product;", ("@invoice", invoiceId), ("@product", productId))) == 1, "Invoice item insert"); // 18
+                Require(Convert.ToInt64(Scalar(cn, tx, "SELECT COUNT(*) FROM InventoryMovements WHERE ReferenceId=@invoice AND ReferenceType='SaleInvoice' AND ProductId=@product AND Direction=-1;", ("@invoice", invoiceId), ("@product", productId))) == 1, "Inventory movement trigger");
                 Require(Convert.ToInt64(Scalar(cn, tx, "SELECT COUNT(*) FROM InvoiceItems i JOIN Invoices v ON v.Id=i.InvoiceId WHERE v.CustomerId=@customer;", ("@customer", customerId))) == 1, "Invoice join"); // 19
                 Exec(cn, tx, "DELETE FROM Invoices WHERE Id=@id;", ("@id", invoiceId)); // 20
                 tx.Rollback();
