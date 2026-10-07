@@ -1,5 +1,7 @@
 using Microsoft.Data.Sqlite;
 using System.Data;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace BATIR;
 
