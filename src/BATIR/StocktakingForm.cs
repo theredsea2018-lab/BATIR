@@ -81,6 +81,7 @@ public class StocktakingForm : Form
 
     void SaveAdjustments()
     {
+        if (!PermissionService.Require("Inventory.Edit", this)) return;
         var changes = new List<(long id, long current, long counted, long diff)>();
         foreach (DataRow row in products.Rows)
         {
