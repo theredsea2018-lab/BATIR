@@ -643,9 +643,17 @@ WHERE Active=1 AND (Barcode=@q OR Name LIKE @like) ORDER BY CASE WHEN Barcode=@q
         foreach (DataRow row in invoiceItems.Rows)
         {
             if (Convert.ToInt64(row["ProductId"]) == id) {
-                row["تعداد"] = Convert.ToInt64(row["تعداد"]) + qty;
-                row["تخفیف"] = Convert.ToInt64(row["تخفیف"]) + (long)invoiceDiscount.Value;
-                row["جمع"] = Convert.ToInt64(row["تعداد"]) * Convert.ToInt64(row["فی"]) - Convert.ToInt64(row["تخفیف"]);
+                var newQty = Convert.ToInt64(row["تعداد"]) + qty;
+                var newDiscount = Convert.ToInt64(row["تخفیف"]) + (long)invoiceDiscount.Value;
+                var lineTotal = newQty * Convert.ToInt64(row["فی"]);
+                if (newDiscount > lineTotal)
+                {
+                    MessageBox.Show("تخفیف تجمعی این کالا نمی‌تواند بیشتر از مبلغ ردیف باشد.");
+                    return;
+                }
+                row["تعداد"] = newQty;
+                row["تخفیف"] = newDiscount;
+                row["جمع"] = lineTotal - newDiscount;
                 UpdateInvoiceTotal();
                 SaveDraftInvoice();
                 invoiceSearch.Clear();
