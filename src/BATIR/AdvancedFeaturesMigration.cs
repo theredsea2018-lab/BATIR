@@ -118,6 +118,77 @@ CREATE INDEX IF NOT EXISTS IX_ProductTierPrices_ProductTier ON ProductTierPrices
             }
         }
 
+        Database.AddColumnIfMissing(cn, "Products", "ExternalId", "TEXT");
+        Database.AddColumnIfMissing(cn, "Customers", "ExternalId", "TEXT");
+        Database.AddColumnIfMissing(cn, "Suppliers", "ExternalId", "TEXT");
+        Database.AddColumnIfMissing(cn, "Invoices", "ExternalId", "TEXT");
+
+        using (var identity = cn.CreateCommand())
+        {
+            identity.CommandText = @"
+UPDATE Products SET ExternalId=lower(hex(randomblob(16))) WHERE ExternalId IS NULL OR trim(ExternalId)='';
+UPDATE Customers SET ExternalId=lower(hex(randomblob(16))) WHERE ExternalId IS NULL OR trim(ExternalId)='';
+UPDATE Suppliers SET ExternalId=lower(hex(randomblob(16))) WHERE ExternalId IS NULL OR trim(ExternalId)='';
+UPDATE Invoices SET ExternalId=lower(hex(randomblob(16))) WHERE ExternalId IS NULL OR trim(ExternalId='');";
+            identity.ExecuteNonQuery();
+        }
+
+        using (var externalIndexes = cn.CreateCommand())
+        {
+            externalIndexes.CommandText = @"
+CREATE UNIQUE INDEX IF NOT EXISTS UX_Products_ExternalId ON Products(ExternalId);
+CREATE UNIQUE INDEX IF NOT EXISTS UX_Customers_ExternalId ON Customers(ExternalId);
+CREATE UNIQUE INDEX IF NOT EXISTS UX_Suppliers_ExternalId ON Suppliers(ExternalId);
+CREATE UNIQUE INDEX IF NOT EXISTS UX_Invoices_ExternalId ON Invoices(ExternalId);
+
+CREATE TRIGGER IF NOT EXISTS trg_Products_ExternalId
+AFTER INSERT ON Products
+WHEN NEW.ExternalId IS NULL OR trim(NEW.ExternalId)=''
+BEGIN UPDATE Products SET ExternalId=lower(hex(randomblob(16))) WHERE Id=NEW.Id; END;
+
+CREATE TRIGGER IF NOT EXISTS trg_Customers_ExternalId
+AFTER INSERT ON Customers
+WHEN NEW.ExternalId IS NULL OR trim(NEW.ExternalId)=''
+BEGIN UPDATE Customers SET ExternalId=lower(hex(randomblob(16))) WHERE Id=NEW.Id; END;
+
+CREATE TRIGGER IF NOT EXISTS trg_Suppliers_ExternalId
+AFTER INSERT ON Suppliers
+WHEN NEW.ExternalId IS NULL OR trim(NEW.ExternalId)=''
+BEGIN UPDATE Suppliers SET ExternalId=lower(hex(randomblob(16))) WHERE Id=NEW.Id; END;
+
+CREATE TRIGGER IF NOT EXISTS trg_Invoices_ExternalId
+AFTER INSERT ON Invoices
+WHEN NEW.ExternalId IS NULL OR trim(NEW.ExternalId)=''
+BEGIN UPDATE Invoices SET ExternalId=lower(hex(randomblob(16))) WHERE Id=NEW.Id; END;
+
+CREATE TABLE IF NOT EXISTS SyncOperations(
+ Id INTEGER PRIMARY KEY AUTOINCREMENT,
+ OperationId TEXT NOT NULL UNIQUE,
+ DeviceId TEXT NOT NULL,
+ OperationType TEXT NOT NULL,
+ Payload TEXT NOT NULL,
+ CreatedAt TEXT NOT NULL,
+ AppliedAt TEXT,
+ Status TEXT NOT NULL DEFAULT 'Pending',
+ ErrorMessage TEXT
+);
+CREATE INDEX IF NOT EXISTS IX_SyncOperations_StatusId ON SyncOperations(Status,Id);
+CREATE INDEX IF NOT EXISTS IX_SyncOperations_Device ON SyncOperations(DeviceId,CreatedAt);
+
+CREATE TABLE IF NOT EXISTS SyncEntityMap(
+ Id INTEGER PRIMARY KEY AUTOINCREMENT,
+ DeviceId TEXT NOT NULL,
+ EntityType TEXT NOT NULL,
+ ExternalId TEXT NOT NULL,
+ LocalId INTEGER NOT NULL,
+ UNIQUE(DeviceId,EntityType,ExternalId)
+);
+CREATE INDEX IF NOT EXISTS IX_SyncEntityMap_Local ON SyncEntityMap(EntityType,LocalId);";
+            externalIndexes.ExecuteNonQuery();
+        }
+
+        var syncDeviceId = NetworkLedgerSyncService.EnsureDeviceId(cn);
+
         var lanKey = GetOrCreateNetworkSyncKey(cn);
         foreach (var item in new[] { ("AutoBackupEnabled", "1"), ("AutoBackupIntervalHours", "24"), ("AutoBackupRetention", "7"), ("NetworkSyncKey", lanKey), ("MinimumSaleMarginPercent", "0") })
         {
@@ -127,6 +198,10 @@ CREATE INDEX IF NOT EXISTS IX_ProductTierPrices_ProductTier ON ProductTierPrices
             addSetting.Parameters.AddWithValue("@value", item.Item2);
             addSetting.ExecuteNonQuery();
         }
+
+        using var syncDevice = cn.CreateCommand();
+        syncDevice.CommandText = "INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) VALUES('SyncDeviceLabel','این رایانه',datetime('now'));";
+        syncDevice.ExecuteNonQuery();
 
         using var roleSetting = cn.CreateCommand();
         roleSetting.CommandText = "INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) SELECT 'CurrentRoleId',CAST(Id AS TEXT),datetime('now') FROM UserRoles WHERE Name='مدیر';";
