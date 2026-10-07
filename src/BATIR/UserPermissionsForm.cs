@@ -45,7 +45,7 @@ public class UserPermissionsForm : Form
         permissions.Dock = DockStyle.Fill; permissions.CheckOnClick = true;
         foreach (var item in PermissionCatalog) permissions.Items.Add(item.Text);
 
-        roleName.Dock = DockStyle.Top; roleName.PlaceholderText = "نام نقش جدید یا انتخاب‌شده";
+        roleName.Dock = DockStyle.Top;
         var rolePanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10) };
         rolePanel.Controls.Add(rolesGrid);
         var add = new Button { Text = "نقش جدید", Dock = DockStyle.Bottom, Height = 42 };
