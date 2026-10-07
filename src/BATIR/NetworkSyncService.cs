@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace BATIR;
 
@@ -16,6 +17,9 @@ internal static class NetworkSyncService
         {
             using var client = await listener.AcceptTcpClientAsync();
             using var stream = client.GetStream();
+            var magic = new byte[4]; await ReadExactlyAsync(stream, magic, cancellationToken); if (Encoding.ASCII.GetString(magic) != "BAT1") throw new InvalidDataException("پروتکل همگام‌سازی BATIR معتبر نیست.");
+            var expectedHash = new byte[32]; await ReadExactlyAsync(stream, expectedHash, cancellationToken);
+            var expectedMac = new byte[32]; await ReadExactlyAsync(stream, expectedMac, cancellationToken);
             var length = await ReadInt64Async(stream, cancellationToken);
             if (length <= 0 || length > 2L * 1024 * 1024 * 1024) throw new InvalidDataException("حجم فایل پشتیبان نامعتبر است.");
             var temp = targetPath + ".incoming";
@@ -30,6 +34,9 @@ internal static class NetworkSyncService
             }
             if (File.Exists(targetPath)) File.Delete(targetPath);
             File.Move(temp, targetPath);
+            var actualHash = Convert.FromHexString(Sha256(targetPath));
+            if (!CryptographicOperations.FixedTimeEquals(expectedHash, actualHash) || !CryptographicOperations.FixedTimeEquals(expectedMac, ComputeMac(actualHash)))
+            { File.Delete(targetPath); throw new InvalidDataException("صحت یا کلید پشتیبان شبکه تأیید نشد."); }
         }
         finally
         {
@@ -45,10 +52,24 @@ internal static class NetworkSyncService
         await client.ConnectAsync(host, Port);
         using var stream = client.GetStream();
         var info = new FileInfo(backupPath);
+        var hash = Convert.FromHexString(Sha256(backupPath));
+        var mac = ComputeMac(hash);
+        await stream.WriteAsync(Encoding.ASCII.GetBytes("BAT1"), 0, 4, cancellationToken);
+        await stream.WriteAsync(hash, 0, hash.Length, cancellationToken);
+        await stream.WriteAsync(mac, 0, mac.Length, cancellationToken);
         await WriteInt64Async(stream, info.Length, cancellationToken);
         using var file = new FileStream(backupPath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, true);
         await file.CopyToAsync(stream, 65536, cancellationToken);
         await stream.FlushAsync(cancellationToken);
+    }
+
+    static byte[] ComputeMac(byte[] data)
+    {
+        var key = Database.Query("SELECT Value FROM Settings WHERE Key='NetworkSyncKey' LIMIT 1");
+        var secret = key.Rows.Count > 0 ? Convert.ToString(key.Rows[0]["Value"]) : null;
+        if (string.IsNullOrWhiteSpace(secret)) secret = "BATIR-LAN-DEFAULT-CHANGE-ME";
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
+        return hmac.ComputeHash(data);
     }
 
     public static string Sha256(string path)
