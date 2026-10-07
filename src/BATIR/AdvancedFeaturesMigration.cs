@@ -100,6 +100,15 @@ CREATE INDEX IF NOT EXISTS IX_TaxDocuments_Invoice ON TaxDocuments(InvoiceId);
             }
         }
 
+        foreach (var item in new[] { ("AutoBackupEnabled", "1"), ("AutoBackupIntervalHours", "24"), ("AutoBackupRetention", "7"), ("NetworkSyncKey", "BATIR-LAN-DEFAULT-CHANGE-ME") })
+        {
+            using var addSetting = cn.CreateCommand();
+            addSetting.CommandText = "INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) VALUES(@key,@value,datetime('now'))";
+            addSetting.Parameters.AddWithValue("@key", item.Item1);
+            addSetting.Parameters.AddWithValue("@value", item.Item2);
+            addSetting.ExecuteNonQuery();
+        }
+
         using var roleSetting = cn.CreateCommand();
         roleSetting.CommandText = "INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) SELECT 'CurrentRoleId',CAST(Id AS TEXT),datetime('now') FROM UserRoles WHERE Name='مدیر';";
         roleSetting.ExecuteNonQuery();
