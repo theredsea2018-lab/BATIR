@@ -56,6 +56,7 @@ public class PurchaseForm : Form
 
     void AddText(TableLayoutPanel t,string label,TextBox box,int c,int r)
     {
+        if(!PermissionService.Require("Purchases.Create", this)) return;
         var p=new Panel{Dock=DockStyle.Fill}; box.Dock=DockStyle.Fill; p.Controls.Add(box);
         p.Controls.Add(new Label{Text=label,Dock=DockStyle.Right,Width=100,TextAlign=ContentAlignment.MiddleRight}); t.Controls.Add(p,c,r);
     }
