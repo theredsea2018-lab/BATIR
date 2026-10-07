@@ -138,7 +138,8 @@ BEGIN SELECT RAISE(ABORT,'اختلاف انبارگردانی با موجودی 
             Index(cn, tx, "CREATE INDEX IF NOT EXISTS IX_InventoryMovements_ProductId ON InventoryMovements(ProductId);");
 
             // Sale: stock leaves the store. Purchase: stock enters the store.
-            Trigger(cn, tx, @"CREATE TRIGGER IF NOT EXISTS trg_InventoryMovement_InvoiceItem
+            Trigger(cn, tx, "DROP TRIGGER IF EXISTS trg_InventoryMovement_InvoiceItem;");
+            Trigger(cn, tx, @"CREATE TRIGGER trg_InventoryMovement_InvoiceItem
 AFTER INSERT ON InvoiceItems
 BEGIN
   INSERT INTO InventoryMovements(DateText,ProductId,Quantity,Direction,UnitCost,ReferenceType,ReferenceId,ReferenceItemId,Notes)
@@ -147,7 +148,9 @@ BEGIN
          NEW.CostPrice,
          CASE WHEN i.Type='Purchase' THEN 'PurchaseInvoice' ELSE 'SaleInvoice' END,
          NEW.InvoiceId,NEW.Id,
-         'ثبت خودکار از قلم فاکتور';
+         'ثبت خودکار از قلم فاکتور'
+  FROM Invoices i
+  WHERE i.Id=NEW.InvoiceId;
 END;");
 
             // Sales return puts goods back into stock.
