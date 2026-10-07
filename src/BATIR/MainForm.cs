@@ -518,14 +518,6 @@ VALUES(@date,'کاربر','دریافت از مشتری','Customer',@id,@details
         return p;
     }
 
-    TabPage SimplePage(string title, string text)
-    {
-        var p = new TabPage(title);
-        p.Controls.Add(new Label { Dock = DockStyle.Fill, Text = text + "\n\nساختار پایگاه داده این بخش آماده است و فرم عملیاتی آن در مرحله بعد تکمیل می‌شود.",
-            Padding = new Padding(30), TextAlign = ContentAlignment.TopRight });
-        return p;
-    }
-
     void AddText(TableLayoutPanel t, string label, TextBox box, int c, int r)
     {
         var p = new Panel { Dock = DockStyle.Fill };
