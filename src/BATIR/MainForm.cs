@@ -527,7 +527,7 @@ public class MainForm : Form
         AddText(form, "تلفن", customerPhone, 1, 0);
         AddText(form, "آدرس", customerAddress, 2, 0);
         AddNum(form, "سقف اعتبار", customerCreditLimit, 3, 0);
-        customerPriceTier.Items.AddRange(new object[] { "Normal", "Wholesale", "Partner", "Representative", "Special" }); customerPriceTier.SelectedIndex = 0;
+        customerPriceTier.Items.AddRange(new object[] { "عادی", "عمده‌فروشی", "همکار", "نماینده", "ویژه" }); customerPriceTier.SelectedIndex = 0;
         AddCombo(form, "نوع قیمت", customerPriceTier, 0, 1);
         AddText(form, "توضیحات", customerNotes, 1, 1);
 
@@ -595,8 +595,29 @@ CreditLimit AS [سقف اعتبار], Balance AS [مانده بدهکار] FROM 
         customerAddress.Text = Convert.ToString(dt.Rows[0]["Address"]) ?? "";
         customerCreditLimit.Value = Math.Max(0, Convert.ToDecimal(dt.Rows[0]["CreditLimit"]));
         customerNotes.Text = Convert.ToString(dt.Rows[0]["Notes"]) ?? "";
-        var tier = Convert.ToString(dt.Rows[0]["PriceTier"]) ?? "Normal"; customerPriceTier.SelectedItem = tier; if (customerPriceTier.SelectedIndex < 0) customerPriceTier.SelectedIndex = 0;
+        var tier = Convert.ToString(dt.Rows[0]["PriceTier"]) ?? "Normal";
+        var tierDisplay = tier switch
+        {
+            "Wholesale" => "عمده‌فروشی",
+            "Partner" => "همکار",
+            "Representative" => "نماینده",
+            "Special" => "ویژه",
+            _ => "عادی"
+        };
+        customerPriceTier.SelectedItem = tierDisplay; if (customerPriceTier.SelectedIndex < 0) customerPriceTier.SelectedIndex = 0;
         customerPayment.Value = 0;
+    }
+
+    string GetCustomerPriceTierValue()
+    {
+        return customerPriceTier.SelectedItem?.ToString() switch
+        {
+            "عمده‌فروشی" => "Wholesale",
+            "همکار" => "Partner",
+            "نماینده" => "Representative",
+            "ویژه" => "Special",
+            _ => "Normal"
+        };
     }
 
     void SaveCustomer()
@@ -616,7 +637,7 @@ VALUES(@name,@phone,@address,@limit,0,@notes,@tier)",
                 new SqliteParameter("@address", customerAddress.Text.Trim()),
                 new SqliteParameter("@limit", (long)customerCreditLimit.Value),
                 new SqliteParameter("@notes", customerNotes.Text.Trim()),
-                new SqliteParameter("@tier", customerPriceTier.SelectedItem?.ToString() ?? "Normal"));
+                new SqliteParameter("@tier", GetCustomerPriceTierValue()));
             status.Text = "مشتری جدید ثبت شد";
         }
         else
