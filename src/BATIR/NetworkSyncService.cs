@@ -33,7 +33,7 @@ internal static class NetworkSyncService
                 throw new InvalidDataException("پشتیبان دریافتی از شبکه معتبر نیست.");
             }
             var actualHash = HexToBytes(Sha256(temp));
-            if (!CryptographicOperations.FixedTimeEquals(expectedHash, actualHash) || !CryptographicOperations.FixedTimeEquals(expectedMac, ComputeMac(actualHash)))
+            if (!FixedEquals(expectedHash, actualHash) || !FixedEquals(expectedMac, ComputeMac(actualHash)))
             { File.Delete(temp); throw new InvalidDataException("صحت یا کلید پشتیبان شبکه تأیید نشد."); }
             if (File.Exists(targetPath)) File.Delete(targetPath);
             File.Move(temp, targetPath);
@@ -61,6 +61,14 @@ internal static class NetworkSyncService
         using var file = new FileStream(backupPath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, true);
         await file.CopyToAsync(stream, 65536, cancellationToken);
         await stream.FlushAsync(cancellationToken);
+    }
+
+    static bool FixedEquals(byte[] a, byte[] b)
+    {
+        if (a.Length != b.Length) return false;
+        var diff = 0;
+        for (var i = 0; i < a.Length; i++) diff |= a[i] ^ b[i];
+        return diff == 0;
     }
 
     static byte[] HexToBytes(string hex)
