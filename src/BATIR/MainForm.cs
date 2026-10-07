@@ -131,108 +131,297 @@ public class MainForm : Form
 
     void Build()
     {
-        var tabs = new TabControl { Dock = DockStyle.Fill };
-        tabs.TabPages.Add(BuildProducts());
-        tabs.TabPages.Add(BuildInvoices());
-        tabs.TabPages.Add(BuildCustomers());
-        tabs.TabPages.Add(BuildChecksPage());
-        var purchasePage = new TabPage("فاکتور خرید");
-        var purchaseButton = new Button { Text = "باز کردن فاکتور خرید", Dock = DockStyle.Top, Height = 70 };
-        purchaseButton.Click += (_, _) => new PurchaseForm().ShowDialog(this);
-        purchasePage.Controls.Add(purchaseButton);
-        tabs.TabPages.Add(purchasePage);
-        var purchaseReturnsPage = new TabPage("برگشت از خرید");
-        var purchaseReturnsButton = new Button { Text = "باز کردن برگشت از خرید", Dock = DockStyle.Top, Height = 70 };
-        purchaseReturnsButton.Click += (_, _) => new PurchaseReturnsForm().ShowDialog(this);
-        purchaseReturnsPage.Controls.Add(purchaseReturnsButton);
-        tabs.TabPages.Add(purchaseReturnsPage);
-        var returnsPage = new TabPage("برگشت از فروش");
-        var returnsButton = new Button { Text = "باز کردن", Dock = DockStyle.Top, Height = 70 };
-        returnsButton.Click += (_, _) => { var form = new SalesReturnsForm(); form.ShowDialog(this); };
-        returnsPage.Controls.Add(returnsButton);
-        tabs.TabPages.Add(returnsPage);
-        var suppliersPage = new TabPage("تأمین‌کنندگان");
-        var suppliersButton = new Button { Text = "باز کردن مدیریت تأمین‌کنندگان", Dock = DockStyle.Top, Height = 70 };
-        suppliersButton.Click += (_, _) => new SuppliersForm().ShowDialog(this);
-        suppliersPage.Controls.Add(suppliersButton);
-        tabs.TabPages.Add(suppliersPage);
-        var statementPage = new TabPage("دفتر حساب مشتریان");
-        var statementButton = new Button { Text = "باز کردن دفتر حساب مشتریان", Dock = DockStyle.Top, Height = 70 };
-        statementButton.Click += (_, _) => new CustomerStatementForm().ShowDialog(this);
-        statementPage.Controls.Add(statementButton);
-        tabs.TabPages.Add(statementPage);
-        var supplierStatementPage = new TabPage("دفتر حساب تأمین‌کنندگان");
-        var supplierStatementButton = new Button { Text = "باز کردن دفتر حساب تأمین‌کنندگان", Dock = DockStyle.Top, Height = 70 };
-        supplierStatementButton.Click += (_, _) => new SupplierStatementForm().ShowDialog(this);
-        supplierStatementPage.Controls.Add(supplierStatementButton);
-        tabs.TabPages.Add(supplierStatementPage);
-        var stocktakingPage = new TabPage("انبارگردانی");
-        var stocktakingButton = new Button { Text = "باز کردن انبارگردانی", Dock = DockStyle.Top, Height = 70 };
-        stocktakingButton.Click += (_, _) => new StocktakingForm().ShowDialog(this);
-        stocktakingPage.Controls.Add(stocktakingButton);
-        tabs.TabPages.Add(stocktakingPage);
-        var reportPage = new TabPage("گزارش موجودی و سود");
-        var reportButton = new Button { Text = "باز کردن گزارش موجودی و سود", Dock = DockStyle.Top, Height = 70 };
-        reportButton.Click += (_, _) => new InventoryReportForm().ShowDialog(this);
-        reportPage.Controls.Add(reportButton);
-        tabs.TabPages.Add(reportPage);
-        var documentSearchPage = new TabPage("جستجوی اسناد");
-        var documentSearchButton = new Button { Text = "باز کردن جستجوی اسناد", Dock = DockStyle.Top, Height = 70 };
-        documentSearchButton.Click += (_, _) => new DocumentSearchForm().ShowDialog(this);
-        documentSearchPage.Controls.Add(documentSearchButton);
-        tabs.TabPages.Add(documentSearchPage);
-        var debtorsPage = new TabPage("بدهکاران و بستانکاران");
-        var debtorsButton = new Button { Text = "باز کردن گزارش بدهکاران و بستانکاران", Dock = DockStyle.Top, Height = 70 };
-        debtorsButton.Click += (_, _) => new DebtorsCreditorsForm().ShowDialog(this);
-        debtorsPage.Controls.Add(debtorsButton);
-        tabs.TabPages.Add(debtorsPage);
-        var stage2Page = new TabPage("کنترل و گزارش مرحله دوم");
-        var stage2Button = new Button { Text = "گزارش سود، بهای میانگین، هشدار، تغییر گروهی قیمت، گردش کالا و بستن شیفت", Dock = DockStyle.Top, Height = 70 };
-        stage2Button.Click += (_, _) => new Stage2ReportsForm().ShowDialog(this);
-        stage2Page.Controls.Add(stage2Button);
-        tabs.TabPages.Add(stage2Page);
-        var settingsPage = new TabPage("تنظیمات");
-        var settingsButton = new Button { Text = "باز کردن تنظیمات BATIR", Dock = DockStyle.Top, Height = 70 };
-        settingsButton.Click += (_, _) => new SettingsForm().ShowDialog(this);
-        settingsPage.Controls.Add(settingsButton);
-        tabs.TabPages.Add(settingsPage);
-        var financePage = new TabPage("مالی روزانه");
-        var financeButton = new Button { Text = "دریافت، پرداخت تأمین‌کننده و هزینه‌ها", Dock = DockStyle.Top, Height = 70 };
-        financeButton.Click += (_,_) => new FinancialOperationsForm().ShowDialog(this);
-        financePage.Controls.Add(financeButton); tabs.TabPages.Add(financePage);
-        var inventoryOpsPage = new TabPage("اصلاح موجودی");
-        var inventoryOpsButton = new Button { Text = "اصلاح و ثبت گردش موجودی", Dock = DockStyle.Top, Height = 70 };
-        inventoryOpsButton.Click += (_,_) => new InventoryTransferForm().ShowDialog(this);
-        inventoryOpsPage.Controls.Add(inventoryOpsButton); tabs.TabPages.Add(inventoryOpsPage);
+        BackColor = Color.FromArgb(232, 238, 245);
+        MinimumSize = new Size(1100, 680);
 
-        var advancedPage = new TabPage("امکانات پیشرفته");
-        var advancedButton = new Button { Text = "بانک، بودجه، نقدینگی، شبکه، OCR و دسترسی کاربران", Dock = DockStyle.Top, Height = 70 };
-        advancedButton.Click += (_, _) => new AdvancedFeaturesForm().ShowDialog(this);
-        advancedPage.Controls.Add(advancedButton);
-        tabs.TabPages.Add(advancedPage);
-
-        if (FeatureSettings.IsEnabled("DueReminders", true))
+        var tabs = new TabControl
         {
-            var remindersPage = new TabPage("یادآوری سررسیدها");
-            var remindersButton = new Button { Text = "مدیریت بدهی، چک و سایر سررسیدها", Dock = DockStyle.Top, Height = 70 };
-            remindersButton.Click += (_, _) => new RemindersForm().ShowDialog(this);
-            remindersPage.Controls.Add(remindersButton);
-            tabs.TabPages.Add(remindersPage);
+            Dock = DockStyle.Fill,
+            Appearance = TabAppearance.Buttons,
+            SizeMode = TabSizeMode.Fixed,
+            ItemSize = new Size(1, 1),
+            Padding = new Point(0, 0)
+        };
+
+        TabPage AddPage(TabPage page)
+        {
+            tabs.TabPages.Add(page);
+            return page;
         }
 
-        var top = new Panel { Dock = DockStyle.Top, Height = 55 };
-        var title = new Label { Text = "  باتیر | حسابداری و انبارداری", Dock = DockStyle.Left, Width = 350,
-            Font = new Font("Tahoma", 14, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft };
-        var restore = new Button { Text = "بازیابی پشتیبان", Dock = DockStyle.Right, Width = 120 };
-        restore.Click += (_, _) => RestoreBackup();
-        var verify = new Button { Text = "بررسی پشتیبان", Dock = DockStyle.Right, Width = 120 };
-        verify.Click += (_, _) => VerifyBackup();
-        var backup = new Button { Text = "پشتیبان‌گیری", Dock = DockStyle.Right, Width = 120 };
-        backup.Click += (_, _) => Backup();
-        top.Controls.Add(restore); top.Controls.Add(verify); top.Controls.Add(backup); top.Controls.Add(title);
+        TabPage SimplePage(string title, string actionText, Action action)
+        {
+            var page = new TabPage(title);
+            var host = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(245, 247, 250), Padding = new Padding(24) };
+            var button = new Button
+            {
+                Text = actionText,
+                Dock = DockStyle.Top,
+                Height = 62,
+                Font = new Font("Tahoma", 10, FontStyle.Bold),
+                BackColor = Color.FromArgb(223, 233, 246),
+                FlatStyle = FlatStyle.Flat
+            };
+            button.FlatAppearance.BorderColor = Color.FromArgb(145, 166, 194);
+            button.Click += (_, _) => action();
+            host.Controls.Add(button);
+            page.Controls.Add(host);
+            return page;
+        }
 
-        status.Dock = DockStyle.Bottom; status.Height = 28; status.Text = "آماده | ریال";
-        Controls.Add(tabs); Controls.Add(status); Controls.Add(top);
+        var home = new TabPage("خانه");
+        var homeRoot = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(222, 229, 238), Padding = new Padding(18) };
+        var homeTitle = new Label
+        {
+            Text = "باتیر | حسابداری و انبارداری",
+            Dock = DockStyle.Top,
+            Height = 55,
+            Font = new Font("Tahoma", 17, FontStyle.Bold),
+            ForeColor = Color.FromArgb(32, 63, 104),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+        var quick = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 3, Padding = new Padding(12) };
+        for (int i = 0; i < 4; i++) quick.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+        for (int i = 0; i < 3; i++) quick.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33f));
+
+        void QuickButton(string text, int col, int row, Action action)
+        {
+            var b = new Button
+            {
+                Text = text,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(7),
+                Font = new Font("Tahoma", 10, FontStyle.Bold),
+                BackColor = Color.FromArgb(239, 244, 250),
+                FlatStyle = FlatStyle.Flat
+            };
+            b.FlatAppearance.BorderColor = Color.FromArgb(137, 160, 190);
+            b.Click += (_, _) => action();
+            quick.Controls.Add(b, col, row);
+        }
+
+        homeRoot.Controls.Add(quick);
+        homeRoot.Controls.Add(homeTitle);
+        home.Controls.Add(homeRoot);
+        AddPage(home);
+
+        var products = AddPage(BuildProducts());
+        var invoices = AddPage(BuildInvoices());
+        var customers = AddPage(BuildCustomers());
+        var checks = AddPage(BuildChecksPage());
+
+        var purchasePage = AddPage(SimplePage("فاکتور خرید", "باز کردن فاکتور خرید", () => new PurchaseForm().ShowDialog(this)));
+        var purchaseReturnsPage = AddPage(SimplePage("برگشت از خرید", "باز کردن برگشت از خرید", () => new PurchaseReturnsForm().ShowDialog(this)));
+        var returnsPage = AddPage(SimplePage("برگشت از فروش", "باز کردن برگشت از فروش", () => new SalesReturnsForm().ShowDialog(this)));
+        var suppliersPage = AddPage(SimplePage("تأمین‌کنندگان", "مدیریت تأمین‌کنندگان", () => new SuppliersForm().ShowDialog(this)));
+        var statementPage = AddPage(SimplePage("دفتر حساب مشتریان", "باز کردن دفتر حساب مشتریان", () => new CustomerStatementForm().ShowDialog(this)));
+        var supplierStatementPage = AddPage(SimplePage("دفتر حساب تأمین‌کنندگان", "باز کردن دفتر حساب تأمین‌کنندگان", () => new SupplierStatementForm().ShowDialog(this)));
+        var stocktakingPage = AddPage(SimplePage("انبارگردانی", "باز کردن انبارگردانی", () => new StocktakingForm().ShowDialog(this)));
+        var reportPage = AddPage(SimplePage("گزارش موجودی و سود", "گزارش موجودی و سود", () => new InventoryReportForm().ShowDialog(this)));
+        var documentSearchPage = AddPage(SimplePage("جستجوی اسناد", "جستجوی اسناد", () => new DocumentSearchForm().ShowDialog(this)));
+        var debtorsPage = AddPage(SimplePage("بدهکاران و بستانکاران", "گزارش بدهکاران و بستانکاران", () => new DebtorsCreditorsForm().ShowDialog(this)));
+        var stage2Page = AddPage(SimplePage("کنترل و گزارش", "سود، بهای میانگین، هشدار، قیمت‌گذاری و بستن شیفت", () => new Stage2ReportsForm().ShowDialog(this)));
+        var settingsPage = AddPage(SimplePage("تنظیمات", "باز کردن تنظیمات BATIR", () => new SettingsForm().ShowDialog(this)));
+        var financePage = AddPage(SimplePage("مالی روزانه", "دریافت، پرداخت، تأمین‌کننده و هزینه‌ها", () => new FinancialOperationsForm().ShowDialog(this)));
+        var inventoryOpsPage = AddPage(SimplePage("اصلاح موجودی", "اصلاح و ثبت گردش موجودی", () => new InventoryTransferForm().ShowDialog(this)));
+        var advancedPage = AddPage(SimplePage("امکانات پیشرفته", "بانک، بودجه، نقدینگی، شبکه، OCR و کاربران", () => new AdvancedFeaturesForm().ShowDialog(this)));
+        TabPage? remindersPage = null;
+        if (FeatureSettings.IsEnabled("DueReminders", true))
+            remindersPage = AddPage(SimplePage("یادآوری سررسیدها", "مدیریت بدهی، چک و سررسیدها", () => new RemindersForm().ShowDialog(this)));
+
+        void SelectPage(TabPage page) => tabs.SelectedTab = page;
+
+        var header = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = 70,
+            BackColor = Color.FromArgb(205, 219, 237),
+            Padding = new Padding(10, 8)
+        };
+
+        var title = new Label
+        {
+            Text = "باتیر",
+            Dock = DockStyle.Left,
+            Width = 175,
+            Font = new Font("Tahoma", 17, FontStyle.Bold),
+            ForeColor = Color.FromArgb(28, 61, 102),
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+
+        var subtitle = new Label
+        {
+            Text = "حسابداری | انبارداری | فروش",
+            Dock = DockStyle.Left,
+            Width = 235,
+            Font = new Font("Tahoma", 9, FontStyle.Regular),
+            ForeColor = Color.FromArgb(63, 83, 106),
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+
+        var actions = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Right,
+            Width = 560,
+            FlowDirection = FlowDirection.RightToLeft,
+            WrapContents = false,
+            Padding = new Padding(2)
+        };
+
+        Button Tool(string text, Action action)
+        {
+            var b = new Button
+            {
+                Text = text,
+                Width = 105,
+                Height = 44,
+                Margin = new Padding(3),
+                Font = new Font("Tahoma", 9, FontStyle.Bold),
+                BackColor = Color.FromArgb(238, 244, 251),
+                FlatStyle = FlatStyle.Flat
+            };
+            b.FlatAppearance.BorderColor = Color.FromArgb(128, 151, 181);
+            b.Click += (_, _) => action();
+            return b;
+        }
+
+        actions.Controls.Add(Tool("پشتیبان‌گیری", Backup));
+        actions.Controls.Add(Tool("بازیابی", RestoreBackup));
+        actions.Controls.Add(Tool("فاکتور فروش", () => SelectPage(invoices)));
+        actions.Controls.Add(Tool("فاکتور خرید", () => SelectPage(purchasePage)));
+        actions.Controls.Add(Tool("جستجوی سند", () => SelectPage(documentSearchPage)));
+
+        header.Controls.Add(actions);
+        header.Controls.Add(subtitle);
+        header.Controls.Add(title);
+
+        var nav = new Panel
+        {
+            Dock = DockStyle.Right,
+            Width = 218,
+            BackColor = Color.FromArgb(211, 223, 240),
+            Padding = new Padding(7)
+        };
+
+        var navTitle = new Label
+        {
+            Text = "منوی اصلی",
+            Dock = DockStyle.Top,
+            Height = 44,
+            Font = new Font("Tahoma", 11, FontStyle.Bold),
+            ForeColor = Color.FromArgb(33, 67, 108),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+
+        var menu = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false,
+            AutoScroll = true,
+            RightToLeft = RightToLeft.Yes,
+            Padding = new Padding(2)
+        };
+
+        void Section(string text)
+        {
+            menu.Controls.Add(new Label
+            {
+                Text = text,
+                Width = 194,
+                Height = 27,
+                Margin = new Padding(2, 7, 2, 2),
+                Font = new Font("Tahoma", 8.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(78, 103, 132),
+                TextAlign = ContentAlignment.MiddleRight
+            });
+        }
+
+        void NavButton(string text, Action action, bool primary = false)
+        {
+            var b = new Button
+            {
+                Text = text,
+                Width = 194,
+                Height = primary ? 43 : 38,
+                Margin = new Padding(2),
+                Font = new Font("Tahoma", 9, primary ? FontStyle.Bold : FontStyle.Regular),
+                BackColor = primary ? Color.FromArgb(189, 210, 235) : Color.FromArgb(231, 238, 247),
+                FlatStyle = FlatStyle.Flat
+            };
+            b.FlatAppearance.BorderColor = Color.FromArgb(143, 164, 190);
+            b.Click += (_, _) => action();
+            menu.Controls.Add(b);
+        }
+
+        Section("اسناد");
+        NavButton("ثبت فروش", () => SelectPage(invoices), true);
+        NavButton("خرید", () => SelectPage(purchasePage));
+        NavButton("برگشت از فروش", () => SelectPage(returnsPage));
+        NavButton("برگشت از خرید", () => SelectPage(purchaseReturnsPage));
+        NavButton("دریافت / پرداخت", () => SelectPage(financePage));
+
+        Section("حساب‌ها");
+        NavButton("مشتریان و اشخاص", () => SelectPage(customers));
+        NavButton("تأمین‌کنندگان", () => SelectPage(suppliersPage));
+        NavButton("دفتر حساب مشتریان", () => SelectPage(statementPage));
+        NavButton("دفتر حساب تأمین‌کنندگان", () => SelectPage(supplierStatementPage));
+        NavButton("چک‌ها", () => SelectPage(checks));
+
+        Section("کالا و انبار");
+        NavButton("کالاها و موجودی", () => SelectPage(products));
+        NavButton("انبارگردانی", () => SelectPage(stocktakingPage));
+        NavButton("اصلاح / انتقال موجودی", () => SelectPage(inventoryOpsPage));
+
+        Section("گزارش‌ها");
+        NavButton("گزارش موجودی و سود", () => SelectPage(reportPage));
+        NavButton("بدهکاران / بستانکاران", () => SelectPage(debtorsPage));
+        NavButton("کنترل و گزارش‌های تکمیلی", () => SelectPage(stage2Page));
+        NavButton("جستجوی اسناد", () => SelectPage(documentSearchPage));
+
+        Section("سیستم");
+        NavButton("تنظیمات", () => SelectPage(settingsPage));
+        NavButton("امکانات پیشرفته", () => SelectPage(advancedPage));
+        if (remindersPage != null)
+            NavButton("یادآوری سررسیدها", () => SelectPage(remindersPage));
+
+        var footer = new Panel
+        {
+            Dock = DockStyle.Bottom,
+            Height = 30,
+            BackColor = Color.FromArgb(198, 211, 228)
+        };
+
+        status.Dock = DockStyle.Fill;
+        status.Height = 30;
+        status.Text = "آماده | ریال";
+        status.TextAlign = ContentAlignment.MiddleRight;
+        status.Font = new Font("Tahoma", 8.5f, FontStyle.Regular);
+        footer.Controls.Add(status);
+
+        nav.Controls.Add(menu);
+        nav.Controls.Add(navTitle);
+
+        QuickButton("فاکتور فروش", 0, 0, () => SelectPage(invoices));
+        QuickButton("فاکتور خرید", 1, 0, () => SelectPage(purchasePage));
+        QuickButton("مشتریان", 2, 0, () => SelectPage(customers));
+        QuickButton("کالا و انبار", 3, 0, () => SelectPage(products));
+        QuickButton("دریافت / پرداخت", 0, 1, () => SelectPage(financePage));
+        QuickButton("چک‌ها", 1, 1, () => SelectPage(checks));
+        QuickButton("جستجوی اسناد", 2, 1, () => SelectPage(documentSearchPage));
+        QuickButton("گزارش موجودی و سود", 3, 1, () => SelectPage(reportPage));
+        QuickButton("انبارگردانی", 0, 2, () => SelectPage(stocktakingPage));
+        QuickButton("بدهکاران / بستانکاران", 1, 2, () => SelectPage(debtorsPage));
+        QuickButton("تنظیمات", 2, 2, () => SelectPage(settingsPage));
+        QuickButton("امکانات پیشرفته", 3, 2, () => SelectPage(advancedPage));
+
+        homeRoot.BackColor = Color.FromArgb(229, 234, 241);
+        tabs.SelectedTab = home;
+
+        Controls.Add(tabs);
+        Controls.Add(nav);
+        Controls.Add(footer);
+        Controls.Add(header);
     }
 
     TabPage BuildProducts()
