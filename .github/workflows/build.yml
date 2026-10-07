@@ -27,7 +27,7 @@ jobs:
       - name: Prepare SQLite native runtime
         shell: pwsh
         run: |
-          $src = Join-Path $env:USERPROFILE ".nuget\packages\sqlitepclraw.lib.e_sqlite3\2.1.6\runtimes\win-x64\native\e_sqlite3.dll"
+          $src = Join-Path $env:USERPROFILE ".nuget\packages\sqlitepclraw.lib.e_sqlite3\2.1.13\runtimes\win-x64\native\e_sqlite3.dll"
           if (-not (Test-Path $src)) { throw "SQLite native runtime not found: $src" }
           $dest = "src/BATIR/bin/Any CPU/Release/net48"
           Copy-Item $src (Join-Path $dest "e_sqlite3.dll") -Force
