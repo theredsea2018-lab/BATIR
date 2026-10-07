@@ -70,6 +70,7 @@ ORDER BY i.Id", new SqliteParameter("@no", q));
 
     void ReturnInvoice()
     {
+        if (!PermissionService.Require("Purchases.Return", this)) return;
         if (items.Rows.Count == 0) return;
 
         try
