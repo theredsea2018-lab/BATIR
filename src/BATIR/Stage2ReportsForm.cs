@@ -240,6 +240,69 @@ VALUES(@d,'کاربر','تغییر گروهی قیمت','Products',NULL,@details
         catch(Exception ex){ try{tx.Rollback();}catch{} MessageBox.Show("تغییر قیمت انجام نشد و اطلاعات برگردانده شد.\n"+ex.Message); }
     }
 
+
+    void RollbackLastPriceBatch()
+    {
+        if (!PermissionService.Require("Products.Edit", this)) return;
+        try
+        {
+            using var cn = Database.Open();
+            using var tx = cn.BeginTransaction();
+            string? batchId = null;
+            using (var find = cn.CreateCommand())
+            {
+                find.Transaction = tx;
+                find.CommandText = "SELECT BatchId FROM PriceChangeHistory ORDER BY Id DESC LIMIT 1";
+                batchId = Convert.ToString(find.ExecuteScalar());
+            }
+            if (string.IsNullOrWhiteSpace(batchId))
+            {
+                tx.Rollback();
+                MessageBox.Show("تغییر قیمتی برای برگشت وجود ندارد.");
+                return;
+            }
+
+            using (var restore = cn.CreateCommand())
+            {
+                restore.Transaction = tx;
+                restore.CommandText = @"UPDATE Products
+SET PurchasePrice=(SELECT OldPurchasePrice FROM PriceChangeHistory h WHERE h.BatchId=@batch AND h.ProductId=Products.Id ORDER BY h.Id DESC LIMIT 1),
+    SalePrice=(SELECT OldSalePrice FROM PriceChangeHistory h WHERE h.BatchId=@batch AND h.ProductId=Products.Id ORDER BY h.Id DESC LIMIT 1)
+WHERE Id IN (SELECT ProductId FROM PriceChangeHistory WHERE BatchId=@batch);";
+                restore.Parameters.AddWithValue("@batch", batchId);
+                restore.ExecuteNonQuery();
+            }
+
+            using (var audit = cn.CreateCommand())
+            {
+                audit.Transaction = tx;
+                audit.CommandText = @"INSERT INTO AuditLog(DateText,UserName,Action,Entity,EntityId,Details)
+VALUES(@d,'کاربر','برگشت آخرین تغییر قیمت','Products',NULL,@details);";
+                audit.Parameters.AddWithValue("@d", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                audit.Parameters.AddWithValue("@details", "شناسه تغییر برگشتی: " + batchId);
+                audit.ExecuteNonQuery();
+            }
+
+            using (var remove = cn.CreateCommand())
+            {
+                remove.Transaction = tx;
+                remove.CommandText = "DELETE FROM PriceChangeHistory WHERE BatchId=@batch";
+                remove.Parameters.AddWithValue("@batch", batchId);
+                remove.ExecuteNonQuery();
+            }
+
+            tx.Commit();
+            MessageBox.Show("آخرین تغییر گروهی قیمت با موفقیت برگشت داده شد.");
+            LoadPrices();
+            LoadAlerts();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("برگشت قیمت انجام نشد.\n" + ex.Message, "خطا",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
     void LoadMovement()
     {
         movementGrid.DataSource = Database.Query(@"SELECT m.DateText AS [تاریخ],p.Name AS [کالا],m.Quantity AS [تعداد],
