@@ -32,7 +32,8 @@ public sealed class PrintCenterForm : Form
         t.Controls.Add(new Label { Text="نوع کاغذ", Dock=DockStyle.Fill, TextAlign=ContentAlignment.MiddleRight },0,2); t.Controls.Add(paper,1,2);
         var p = new Button { Text="پیش‌نمایش فاکتور", Dock=DockStyle.Fill, Height=55 }; p.Click += (_,_) => { mode=PrintMode.Invoice; Preview(); };
         var f = new Button { Text="چاپ فاکتور", Dock=DockStyle.Fill, Height=55 }; f.Click += (_,_) => { mode=PrintMode.Invoice; Print(); };
-        var bp = new Button { Text="پیش‌نمایش برچسب", Dock=DockStyle.Fill, Height=55 }; bp.Click += (_,_) => { mode=PrintMode.Barcode; Preview(); };
+        var bp = new Button {
+        if(!PermissionService.Require(mode == PrintMode.Barcode ? "Products.View" : "Sales.Print", this)) return; Text="پیش‌نمایش برچسب", Dock=DockStyle.Fill, Height=55 }; bp.Click += (_,_) => { mode=PrintMode.Barcode; Preview(); };
         var bf = new Button { Text="چاپ برچسب بارکد", Dock=DockStyle.Fill, Height=55 }; bf.Click += (_,_) => { mode=PrintMode.Barcode; Print(); };
         t.Controls.Add(p,0,4); t.Controls.Add(f,1,4); t.Controls.Add(bp,0,5); t.Controls.Add(bf,1,5);
         var h = new Label { Text="فاکتور: شماره سند را وارد کنید  |  بارکد: کد یا بارکد کالا را وارد کنید", Dock=DockStyle.Fill, TextAlign=ContentAlignment.MiddleCenter };
