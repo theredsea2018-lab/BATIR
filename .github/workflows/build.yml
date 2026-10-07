@@ -18,22 +18,6 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Repair legacy source syntax
-        shell: pwsh
-        run: |
-          $path = "src/BATIR/MainForm.cs"
-          $text = Get-Content -Raw -Encoding UTF8 $path
-          $pattern = 'new SqliteParameter\("@factor", \(long\)unitFactor\.Value\)\)\);'
-          $replacement = 'new SqliteParameter("@factor", (long)unitFactor.Value));'
-          $fixed = [regex]::Replace($text, $pattern, $replacement)
-          if ($fixed -ne $text) {
-            Set-Content -Path $path -Value $fixed -Encoding UTF8 -NoNewline
-            Write-Host "Applied syntax repair to MainForm.cs"
-          }
-          if ((Get-Content -Raw -Encoding UTF8 $path).Contains('new SqliteParameter("@factor", (long)unitFactor.Value)));')) {
-            throw "MainForm.cs still contains the known invalid SqliteParameter syntax."
-          }
-
       - name: Restore NuGet packages
         run: msbuild src/BATIR/BATIR.csproj /t:Restore /p:Configuration=Release
 
