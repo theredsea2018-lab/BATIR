@@ -190,7 +190,7 @@ PurchasePrice AS [خرید],SalePrice AS [فروش] FROM Products WHERE Active=1
         if (pct == 0) { MessageBox.Show("درصد تغییر نمی‌تواند صفر باشد."); return; }
         var f = productFilter.Text.Trim();
         var where = "Active=1";
-        using var cn = Database.Connection();
+        using var cn = Database.Open();
         using var tx = cn.BeginTransaction();
         try
         {
@@ -231,7 +231,7 @@ FROM InventoryMovements m JOIN Products p ON p.Id=m.ProductId ORDER BY m.DateTex
     {
         var name = shiftName.Text.Trim();
         if (string.IsNullOrWhiteSpace(name)) { MessageBox.Show("نام شیفت را وارد کنید."); return; }
-        using var cn=Database.Connection(); using var tx=cn.BeginTransaction();
+        using var cn=Database.Open(); using var tx=cn.BeginTransaction();
         try
         {
             using var cmd=cn.CreateCommand(); cmd.Transaction=tx;
