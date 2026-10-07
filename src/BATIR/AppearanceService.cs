@@ -14,7 +14,7 @@ internal static class AppearanceService
         if (!float.TryParse(sizeText, out var size) || size < 7 || size > 24) size = 9;
         form.Font = new Font(fontName, size, FontStyle.Regular);
         var back = Get("UiBackgroundColor", "");
-        if (TryParseColor(back, out var color)) form.BackColor = color;
+        if (AppearanceColorParser.TryParseColor(back, out var color)) form.BackColor = color;
         var imagePath = Get("UiBackgroundImage", "");
         if (File.Exists(imagePath)) { try { using var source=Image.FromFile(imagePath); form.BackgroundImage=new Bitmap(source); form.BackgroundImageLayout=ImageLayout.Stretch; } catch { } }
     }
