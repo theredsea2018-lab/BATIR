@@ -561,6 +561,7 @@ VALUES(@date,'کاربر','دریافت از مشتری','Customer',@id,@details
 
     void AddProduct(object? sender, EventArgs e)
     {
+        if (!PermissionService.Require("Products.Edit", this)) return;
         if (string.IsNullOrWhiteSpace(name.Text)) { MessageBox.Show("نام کالا را وارد کنید."); return; }
         if (sale.Value > 0 && sale.Value < purchase.Value &&
             MessageBox.Show("قیمت فروش کمتر از قیمت خرید است. ثبت شود؟", "هشدار", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
@@ -792,7 +793,7 @@ VALUES(@product,@name,@qty,@price,@discount)";
                 var unitPrice = Convert.ToInt64(row["فی"]);
                 var qty = Math.Max(1, Convert.ToInt64(row["تعداد"]));
                 var discount = Convert.ToInt64(row["تخفیف"]);
-                var effective = unitPrice - discount / qty;
+                var effective = unitPrice - (decimal)discount / qty;
                 var purchase = Convert.ToInt64(Database.Query("SELECT PurchasePrice FROM Products WHERE Id=@id", new SqliteParameter("@id", productId)).Rows[0]["PurchasePrice"]);
                 var minimum = (long)Math.Ceiling(purchase * (1m + minMargin / 100m));
                 if (effective < minimum)
