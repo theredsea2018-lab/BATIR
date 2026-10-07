@@ -72,6 +72,7 @@ ORDER BY i.Id",
 
     void ReturnInvoice()
     {
+        if (!PermissionService.Require("Sales.Return", this)) return;
         if (items.Rows.Count == 0) return;
 
         try
