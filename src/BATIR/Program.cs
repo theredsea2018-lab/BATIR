@@ -1,5 +1,6 @@
 using System;
 using System.Windows.Forms;
+using SQLitePCL;
 
 namespace BATIR
 {
@@ -8,6 +9,7 @@ namespace BATIR
         [STAThread]
         static void Main(string[] args)
         {
+            Batteries_V2.Init();
             if (args.Any(a => string.Equals(a, "--self-test-500", StringComparison.OrdinalIgnoreCase)))
             {
                 Environment.ExitCode = Operational500SelfTest.Run();
