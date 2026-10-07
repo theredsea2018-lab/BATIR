@@ -56,6 +56,14 @@ internal static class DatabaseSelfTest
                 if (Convert.ToInt64(manager.ExecuteScalar()) < 17) throw new InvalidOperationException("Manager permissions are incomplete.");
             }
             using (var query = cn.CreateCommand()) { query.CommandText = "SELECT COUNT(*) FROM Products;"; _ = Convert.ToInt64(query.ExecuteScalar()); }
+            using (var lan = cn.CreateCommand())
+            {
+                lan.CommandText = "SELECT Value FROM Settings WHERE Key='NetworkSyncKey' LIMIT 1;";
+                var secret = Convert.ToString(lan.ExecuteScalar()) ?? "";
+                try { _ = Convert.FromBase64String(secret); }
+                catch { throw new InvalidOperationException("LAN sync secret is not valid Base64."); }
+                if (Convert.FromBase64String(secret).Length < 32) throw new InvalidOperationException("LAN sync secret is shorter than 256 bits.");
+            }
             using (var units = cn.CreateCommand())
             {
                 units.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Products') WHERE name IN ('UnitName','SecondaryUnitName','UnitConversionFactor');";
