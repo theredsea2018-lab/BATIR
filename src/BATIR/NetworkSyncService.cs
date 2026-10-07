@@ -10,24 +10,31 @@ internal static class NetworkSyncService
 
     public static async Task ReceiveBackupAsync(string targetPath, CancellationToken cancellationToken = default)
     {
-        using var listener = new TcpListener(IPAddress.Any, Port);
+        var listener = new TcpListener(IPAddress.Any, Port);
         listener.Start();
-        using var client = await listener.AcceptTcpClientAsync();
-        using var stream = client.GetStream();
-        var length = await ReadInt64Async(stream, cancellationToken);
-        if (length <= 0 || length > 2L * 1024 * 1024 * 1024) throw new InvalidDataException("حجم فایل پشتیبان نامعتبر است.");
-        var temp = targetPath + ".incoming";
-        using (var file = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, 65536, true))
+        try
         {
-            await CopyExactlyAsync(stream, file, length, cancellationToken);
+            using var client = await listener.AcceptTcpClientAsync();
+            using var stream = client.GetStream();
+            var length = await ReadInt64Async(stream, cancellationToken);
+            if (length <= 0 || length > 2L * 1024 * 1024 * 1024) throw new InvalidDataException("حجم فایل پشتیبان نامعتبر است.");
+            var temp = targetPath + ".incoming";
+            using (var file = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, 65536, true))
+            {
+                await CopyExactlyAsync(stream, file, length, cancellationToken);
+            }
+            if (!Database.VerifyBackup(temp))
+            {
+                File.Delete(temp);
+                throw new InvalidDataException("پشتیبان دریافتی از شبکه معتبر نیست.");
+            }
+            if (File.Exists(targetPath)) File.Delete(targetPath);
+            File.Move(temp, targetPath);
         }
-        if (!Database.VerifyBackup(temp))
+        finally
         {
-            File.Delete(temp);
-            throw new InvalidDataException("پشتیبان دریافتی از شبکه معتبر نیست.");
+            listener.Stop();
         }
-        if (File.Exists(targetPath)) File.Delete(targetPath);
-        File.Move(temp, targetPath);
     }
 
     public static async Task SendBackupAsync(string host, string backupPath, CancellationToken cancellationToken = default)
