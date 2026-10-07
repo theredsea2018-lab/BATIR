@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using System.Security.Cryptography;
 
 namespace BATIR;
 
@@ -117,7 +118,8 @@ CREATE INDEX IF NOT EXISTS IX_ProductTierPrices_ProductTier ON ProductTierPrices
             }
         }
 
-        foreach (var item in new[] { ("AutoBackupEnabled", "1"), ("AutoBackupIntervalHours", "24"), ("AutoBackupRetention", "7"), ("NetworkSyncKey", "BATIR-LAN-DEFAULT-CHANGE-ME"), ("MinimumSaleMarginPercent", "0") })
+        var lanKey = GetOrCreateNetworkSyncKey(cn);
+        foreach (var item in new[] { ("AutoBackupEnabled", "1"), ("AutoBackupIntervalHours", "24"), ("AutoBackupRetention", "7"), ("NetworkSyncKey", lanKey), ("MinimumSaleMarginPercent", "0") })
         {
             using var addSetting = cn.CreateCommand();
             addSetting.CommandText = "INSERT OR IGNORE INTO Settings(Key,Value,UpdatedAt) VALUES(@key,@value,datetime('now'))";
@@ -142,3 +144,23 @@ CREATE INDEX IF NOT EXISTS IX_ProductTierPrices_ProductTier ON ProductTierPrices
         }
     }
 }
+
+    static string GetOrCreateNetworkSyncKey(SqliteConnection cn)
+    {
+        const string keyName = "NetworkSyncKey";
+        using var read = cn.CreateCommand();
+        read.CommandText = "SELECT Value FROM Settings WHERE Key=@key LIMIT 1";
+        read.Parameters.AddWithValue("@key", keyName);
+        var existing = Convert.ToString(read.ExecuteScalar());
+        if (!string.IsNullOrWhiteSpace(existing) && !string.Equals(existing, "BATIR-LAN-DEFAULT-CHANGE-ME", StringComparison.Ordinal))
+            return existing;
+        var bytes = new byte[32];
+        using (var rng = RandomNumberGenerator.Create()) rng.GetBytes(bytes);
+        var generated = Convert.ToBase64String(bytes);
+        using var upsert = cn.CreateCommand();
+        upsert.CommandText = "INSERT INTO Settings(Key,Value,UpdatedAt) VALUES(@key,@value,datetime('now')) ON CONFLICT(Key) DO UPDATE SET Value=excluded.Value,UpdatedAt=excluded.UpdatedAt";
+        upsert.Parameters.AddWithValue("@key", keyName);
+        upsert.Parameters.AddWithValue("@value", generated);
+        upsert.ExecuteNonQuery();
+        return generated;
+    }
