@@ -160,7 +160,7 @@ WHERE Status='Pending' ORDER BY Id LIMIT 250;");
             if (!FixedEquals(expectedHash, actualHash) || !FixedEquals(expectedMac, ComputeMac(actualHash)))
                 throw new InvalidDataException("صحت یا کلید امنیتی بسته شبکه تأیید نشد.");
 
-            var batch = Deserialize<SyncBatch>(bytes) ?? throw new InvalidDataException("محتوای بسته شبکه قابل خواندن نیست.");
+            var batch = DeserializeBytes<SyncBatch>(bytes) ?? throw new InvalidDataException("محتوای بسته شبکه قابل خواندن نیست.");
             var applied = 0;
             foreach (var operation in batch.Operations)
             {
@@ -480,6 +480,18 @@ FROM InvoiceItems ii JOIN Products p ON p.Id=ii.ProductId WHERE ii.InvoiceId=@id
         foreach (var p in parameters) cmd.Parameters.AddWithValue(p.Key, p.Value ?? DBNull.Value);
         var value = cmd.ExecuteScalar();
         return value == null || value == DBNull.Value ? null : Convert.ToString(value);
+    }
+
+    static T? DeserializeBytes<T>(byte[] value)
+    {
+        using var ms = new MemoryStream(value);
+        return (T?)new DataContractJsonSerializer(typeof(T)).ReadObject(ms);
+    }
+
+    static bool NegativeStockAllowed(SqliteConnection cn, SqliteTransaction tx)
+    {
+        var value = ScalarString(cn, tx, "SELECT Value FROM Settings WHERE Key='NegativeStockAllowed' LIMIT 1;");
+        return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || value == "1";
     }
 
     static string? TextScalar(SqliteConnection cn, SqliteTransaction? tx, string sql, params (string Key, object Value)[] parameters)
