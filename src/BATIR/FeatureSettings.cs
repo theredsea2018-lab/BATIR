@@ -43,6 +43,7 @@ internal static class FeatureSettings
         ("SmartInvoiceOCR", "ثبت هوشمند فاکتور از عکس/PDF", false),
         ("TaxpayerIntegration", "اتصال و امکانات مالیاتی/مودیان", false),
         ("NetworkSync", "همگام‌سازی شبکه داخلی بدون اینترنت", true),
+        ("AutomaticBackup", "پشتیبان‌گیری خودکار و نسخه‌های چرخشی", true),
         ("MultiComputerLedger", "تجمیع حساب‌های چند کامپیوتر", true),
         ("BarcodeLabelPrinting", "چاپ سریع برچسب بارکد", true),
         ("VoiceEntry", "ثبت و جستجوی صوتی", false),
