@@ -273,7 +273,8 @@ public class MainForm : Form
         save.Click += (_, _) => SaveInvoice();
         header.Controls.Add(save, 1, 2);
 
-        var clear = new Button { Text = "فاکتور جدید", Dock = DockStyle.Fill };
+        var clear = new Button {
+        if(!PermissionService.Require("Sales.Create", this)) return; Text = "فاکتور جدید", Dock = DockStyle.Fill };
         clear.Click += (_, _) => ClearInvoice();
         header.Controls.Add(clear, 2, 2);
 
