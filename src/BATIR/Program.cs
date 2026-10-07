@@ -28,6 +28,7 @@ namespace BATIR
 
             using (var db = Database.Open())
                 AdvancedFeaturesMigration.Run(db);
+            BackupService.RunAutomaticIfDue();
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
