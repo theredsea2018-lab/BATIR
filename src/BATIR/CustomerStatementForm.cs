@@ -13,7 +13,7 @@ public class CustomerStatementForm : Form
         Text = "BATIR | دفتر حساب مشتریان"; Width = 1100; Height = 700;
         RightToLeft = RightToLeft.Yes; RightToLeftLayout = true;
         var top = new Panel { Dock = DockStyle.Top, Height = 45, Padding = new Padding(6) };
-        search.Dock = DockStyle.Fill; search.PlaceholderText = "نام یا تلفن مشتری";
+        search.Dock = DockStyle.Fill;
         search.TextChanged += (_,_) => LoadData();
         top.Controls.Add(search);
         grid.Dock = DockStyle.Fill; grid.ReadOnly = true; grid.AllowUserToAddRows = false;
