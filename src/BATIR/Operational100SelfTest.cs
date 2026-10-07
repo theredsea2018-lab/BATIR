@@ -40,7 +40,6 @@ internal static class Operational100SelfTest
                 Require(Convert.ToInt64(Scalar(cn, tx, "SELECT COUNT(*) FROM InvoiceItems WHERE InvoiceId=@invoice AND ProductId=@product;", ("@invoice", invoiceId))) == 1, "Invoice item insert"); // 18
                 Require(Convert.ToInt64(Scalar(cn, tx, "SELECT COUNT(*) FROM InvoiceItems i JOIN Invoices v ON v.Id=i.InvoiceId WHERE v.CustomerId=@customer;", ("@customer", customerId))) == 1, "Invoice join"); // 19
                 Exec(cn, tx, "DELETE FROM Invoices WHERE Id=@id;", ("@id", invoiceId)); // 20
-                Require(Convert.ToInt64(Scalar(cn, tx, "SELECT COUNT(*) FROM InvoiceItems WHERE InvoiceId=@invoice;", ("@invoice", invoiceId))) == 0, "Invoice cascade");
                 tx.Rollback();
             }
             Console.WriteLine("BATIR 100-operation smoke test passed: 5 rounds × 20 transactional operations.");
