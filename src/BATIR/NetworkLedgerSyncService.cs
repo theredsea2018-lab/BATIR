@@ -161,9 +161,26 @@ WHERE Status='Pending' ORDER BY Id LIMIT 250;");
                 throw new InvalidDataException("صحت یا کلید امنیتی بسته شبکه تأیید نشد.");
 
             var batch = DeserializeBytes<SyncBatch>(bytes) ?? throw new InvalidDataException("محتوای بسته شبکه قابل خواندن نیست.");
+            if (batch.Operations.Count == 0 || batch.Operations.Count > 250)
+                throw new InvalidDataException("تعداد عملیات داخل بسته شبکه نامعتبر است.");
+
+            var sourceDevices = batch.Operations
+                .Select(x => x.DeviceId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            if (sourceDevices.Count != 1)
+                throw new InvalidDataException("بسته شبکه باید فقط از یک کامپیوتر مبدأ صادر شده باشد.");
+
+            var localDeviceId = Convert.ToString(Database.Query("SELECT Value FROM Settings WHERE Key='SyncDeviceId' LIMIT 1;").Rows[0]["Value"]);
+            if (!string.IsNullOrWhiteSpace(localDeviceId) &&
+                string.Equals(localDeviceId, sourceDevices[0], StringComparison.Ordinal))
+                throw new InvalidOperationException("این بسته از همین کامپیوتر صادر شده و برای جلوگیری از ثبت دوباره رد شد.");
+
             var applied = 0;
             foreach (var operation in batch.Operations)
             {
+                ValidateIncomingPacket(operation);
                 if (ApplyInvoiceOperation(operation)) applied++;
             }
 
@@ -179,8 +196,7 @@ WHERE Status='Pending' ORDER BY Id LIMIT 250;");
 
     static bool ApplyInvoiceOperation(SyncInvoicePacket packet)
     {
-        if (string.IsNullOrWhiteSpace(packet.OperationId) || string.IsNullOrWhiteSpace(packet.InvoiceExternalId))
-            throw new InvalidDataException("شناسه عملیات یا فاکتور شبکه خالی است.");
+        ValidateIncomingPacket(packet);
 
         using var cn = Database.Open();
 
@@ -234,13 +250,16 @@ SELECT last_insert_rowid();";
             inv.Parameters.AddWithValue("@externalId", packet.InvoiceExternalId);
             var invoiceId = Convert.ToInt64(inv.ExecuteScalar());
 
+            var isSale = packet.Type.Equals("Sale", StringComparison.OrdinalIgnoreCase);
+            var isPurchase = packet.Type.Equals("Purchase", StringComparison.OrdinalIgnoreCase);
+
             foreach (var item in packet.Items)
             {
                 var productId = ResolveProduct(cn, tx, packet.DeviceId, item);
                 var oldStock = Convert.ToInt64(Scalar(cn, tx, "SELECT Stock FROM Products WHERE Id=@id;", ("@id", productId)));
                 var oldCost = Convert.ToInt64(Scalar(cn, tx, "SELECT PurchasePrice FROM Products WHERE Id=@id;", ("@id", productId)));
 
-                if (packet.Type.Equals("Sale", StringComparison.OrdinalIgnoreCase) && !NegativeStockAllowed(cn, tx))
+                if (isSale && !NegativeStockAllowed(cn, tx))
                 {
                     if (item.Quantity > oldStock)
                         throw new InvalidOperationException("همگام‌سازی فاکتور فروش با موجودی فعلی سازگار نیست؛ عملیات در وضعیت تعارض باقی ماند.");
@@ -258,12 +277,12 @@ VALUES(@invoice,@product,@qty,@price,@cost,@discount);";
                 row.Parameters.AddWithValue("@discount", item.Discount);
                 row.ExecuteNonQuery();
 
-                var newStock = packet.Type.Equals("Purchase", StringComparison.OrdinalIgnoreCase)
+                var newStock = isPurchase
                     ? oldStock + item.Quantity
                     : oldStock - item.Quantity;
 
                 long newCost = oldCost;
-                if (packet.Type.Equals("Purchase", StringComparison.OrdinalIgnoreCase))
+                if (isPurchase)
                 {
                     var incomingCost = Math.Max(0, item.CostPrice);
                     newCost = newStock > 0
@@ -276,16 +295,15 @@ VALUES(@invoice,@product,@qty,@price,@cost,@discount);";
             }
 
             var outstanding = Math.Max(0, packet.Total - packet.Paid);
-            if (packet.Type.Equals("Sale", StringComparison.OrdinalIgnoreCase) && customerId.HasValue && outstanding > 0)
+            if (isSale && customerId.HasValue && outstanding > 0)
                 Exec(cn, tx, "UPDATE Customers SET Balance=Balance+@amount WHERE Id=@id;",
                     ("@amount", outstanding), ("@id", customerId.Value));
-            if (packet.Type.Equals("Purchase", StringComparison.OrdinalIgnoreCase) && supplierId.HasValue && outstanding > 0)
+            if (isPurchase && supplierId.HasValue && outstanding > 0)
                 Exec(cn, tx, "UPDATE Suppliers SET Balance=Balance+@amount WHERE Id=@id;",
                     ("@amount", outstanding), ("@id", supplierId.Value));
 
             if (packet.Paid > 0)
             {
-                var isSale = packet.Type.Equals("Sale", StringComparison.OrdinalIgnoreCase);
                 Exec(cn, tx, @"INSERT INTO CashTransactions(DateText,Type,Amount,Description,UserName,CustomerId,SupplierId,PaymentMethod,ReferenceType,ReferenceId)
 VALUES(@date,@type,@amount,@desc,'شبکه',@customer,@supplier,@method,@refType,@refId);",
                     ("@date", packet.DateText),
@@ -301,6 +319,10 @@ VALUES(@date,@type,@amount,@desc,'شبکه',@customer,@supplier,@method,@refType
 
             Exec(cn, tx, "UPDATE SyncOperations SET Status='Applied',AppliedAt=datetime('now'),ErrorMessage=NULL WHERE OperationId=@op;",
                 ("@op", packet.OperationId));
+            Exec(cn, tx, @"INSERT INTO AuditLog(DateText,UserName,Action,Entity,EntityId,Details)
+VALUES(datetime('now'),'شبکه','همگام‌سازی فاکتور','Invoice',@id,@details);",
+                ("@id", invoiceId),
+                ("@details", $"فاکتور شبکه {invoiceNo} از دستگاه {packet.DeviceId} ثبت شد."));
 
             tx.Commit();
             return true;
@@ -310,6 +332,51 @@ VALUES(@date,@type,@amount,@desc,'شبکه',@customer,@supplier,@method,@refType
             Exec(cn, null, "UPDATE SyncOperations SET Status='Conflict',ErrorMessage=@error WHERE OperationId=@op;",
                 ("@error", ex.Message), ("@op", packet.OperationId));
             throw;
+        }
+    }
+
+    static void ValidateIncomingPacket(SyncInvoicePacket packet)
+    {
+        if (packet == null)
+            throw new InvalidDataException("عملیات شبکه خالی است.");
+
+        if (string.IsNullOrWhiteSpace(packet.OperationId) || packet.OperationId.Length > 64)
+            throw new InvalidDataException("شناسه عملیات شبکه نامعتبر است.");
+        if (string.IsNullOrWhiteSpace(packet.DeviceId) || packet.DeviceId.Length > 128)
+            throw new InvalidDataException("شناسه دستگاه شبکه نامعتبر است.");
+        if (string.IsNullOrWhiteSpace(packet.InvoiceExternalId) || packet.InvoiceExternalId.Length > 128)
+            throw new InvalidDataException("شناسه فاکتور شبکه نامعتبر است.");
+
+        var isSale = packet.Type.Equals("Sale", StringComparison.OrdinalIgnoreCase);
+        var isPurchase = packet.Type.Equals("Purchase", StringComparison.OrdinalIgnoreCase);
+        if (!isSale && !isPurchase)
+            throw new InvalidDataException("نوع فاکتور شبکه فقط می‌تواند Sale یا Purchase باشد.");
+
+        if (packet.InvoiceNo.Length > 128 || packet.DateText.Length > 64 || packet.Notes.Length > 4000)
+            throw new InvalidDataException("اطلاعات سربرگ فاکتور شبکه بیش از حد مجاز است.");
+        if (packet.CustomerExternalId.Length > 128 || packet.SupplierExternalId.Length > 128 ||
+            packet.CustomerName.Length > 500 || packet.SupplierName.Length > 500)
+            throw new InvalidDataException("اطلاعات طرف حساب شبکه بیش از حد مجاز است.");
+
+        if (packet.Total < 0 || packet.Paid < 0 || packet.Paid > packet.Total)
+            throw new InvalidDataException("مقادیر مالی فاکتور شبکه نامعتبر است.");
+        if (packet.Items == null || packet.Items.Count == 0 || packet.Items.Count > 500)
+            throw new InvalidDataException("تعداد اقلام فاکتور شبکه نامعتبر است.");
+
+        foreach (var item in packet.Items)
+        {
+            if (item == null || string.IsNullOrWhiteSpace(item.ExternalId) || item.ExternalId.Length > 128)
+                throw new InvalidDataException("شناسه کالای شبکه نامعتبر است.");
+            if (item.Name.Length > 500 || item.Barcode.Length > 128 || item.Code.Length > 128 ||
+                item.Brand.Length > 250 || item.Category.Length > 250 ||
+                item.UnitName.Length > 100 || item.SecondaryUnitName.Length > 100)
+                throw new InvalidDataException("اطلاعات کالا در بسته شبکه بیش از حد مجاز است.");
+            if (item.Quantity <= 0 || item.UnitConversionFactor <= 0 ||
+                item.UnitPrice < 0 || item.CostPrice < 0 || item.PurchasePrice < 0 ||
+                item.SalePrice < 0 || item.Discount < 0)
+                throw new InvalidDataException("مقادیر عددی کالای شبکه نامعتبر است.");
+            if (item.Discount > item.Quantity * item.UnitPrice)
+                throw new InvalidDataException("تخفیف قلم فاکتور شبکه نمی‌تواند از مبلغ قلم بیشتر باشد.");
         }
     }
 
