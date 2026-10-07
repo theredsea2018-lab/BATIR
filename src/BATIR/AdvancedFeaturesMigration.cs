@@ -129,7 +129,7 @@ CREATE INDEX IF NOT EXISTS IX_ProductTierPrices_ProductTier ON ProductTierPrices
 UPDATE Products SET ExternalId=lower(hex(randomblob(16))) WHERE ExternalId IS NULL OR trim(ExternalId)='';
 UPDATE Customers SET ExternalId=lower(hex(randomblob(16))) WHERE ExternalId IS NULL OR trim(ExternalId)='';
 UPDATE Suppliers SET ExternalId=lower(hex(randomblob(16))) WHERE ExternalId IS NULL OR trim(ExternalId)='';
-UPDATE Invoices SET ExternalId=lower(hex(randomblob(16))) WHERE ExternalId IS NULL OR trim(ExternalId='');";
+UPDATE Invoices SET ExternalId=lower(hex(randomblob(16))) WHERE ExternalId IS NULL OR trim(ExternalId)='';";
             identity.ExecuteNonQuery();
         }
 
@@ -187,7 +187,7 @@ CREATE INDEX IF NOT EXISTS IX_SyncEntityMap_Local ON SyncEntityMap(EntityType,Lo
             externalIndexes.ExecuteNonQuery();
         }
 
-        var syncDeviceId = NetworkLedgerSyncService.EnsureDeviceId(cn);
+        NetworkLedgerSyncService.EnsureDeviceId(cn);
 
         var lanKey = GetOrCreateNetworkSyncKey(cn);
         foreach (var item in new[] { ("AutoBackupEnabled", "1"), ("AutoBackupIntervalHours", "24"), ("AutoBackupRetention", "7"), ("NetworkSyncKey", lanKey), ("MinimumSaleMarginPercent", "0") })
