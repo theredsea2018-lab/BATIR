@@ -33,7 +33,8 @@ public class NetworkSyncForm : Form
 
     async void Send(object? sender, EventArgs e)
     {
-        if (!PermissionService.Require("Backup.Restore", this)) return;
+        if (!FeatureSettings.IsEnabled("NetworkSync", true)) { MessageBox.Show(this, "امکان همگام‌سازی شبکه داخلی در تنظیمات خاموش است."); return; }
+        if (!PermissionService.Require("Backup.Create", this)) return;
         if (string.IsNullOrWhiteSpace(peer.Text) || string.IsNullOrWhiteSpace(backupPath.Text)) { MessageBox.Show(this, "IP مقصد و فایل پشتیبان را مشخص کنید."); return; }
         try
         {
@@ -46,6 +47,7 @@ public class NetworkSyncForm : Form
 
     async void Receive(object? sender, EventArgs e)
     {
+        if (!FeatureSettings.IsEnabled("NetworkSync", true)) { MessageBox.Show(this, "امکان همگام‌سازی شبکه داخلی در تنظیمات خاموش است."); return; }
         if (!PermissionService.Require("Backup.Restore", this)) return;
         using var dialog = new SaveFileDialog { Filter = "BATIR Database (*.db)|*.db", FileName = "BATIR-Network-Backup.db" };
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
