@@ -936,6 +936,7 @@ VALUES(@date,'SalePayment',@amount,@description,'کاربر',@customer,@method,'
             audit.Parameters.AddWithValue("@details", invoiceNo + " | پرداختی: " + paid + " | مانده: " + outstanding + " | روش: " + (paymentMethod.SelectedItem?.ToString() ?? ""));
             audit.ExecuteNonQuery();
 
+            NetworkLedgerSyncService.RecordInvoice(cn, tx, invoiceId);
             tx.Commit();
             MessageBox.Show("فاکتور با موفقیت ثبت شد. شماره: " + invoiceNo, "باتیر");
             ClearInvoice();
