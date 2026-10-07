@@ -78,6 +78,7 @@ FROM Checks ORDER BY Id DESC");
     }
     void Save()
     {
+        if (!PermissionService.Require("Checks.Edit", this)) return;
         if (amount.Value <= 0) { MessageBox.Show("مبلغ چک را وارد کنید."); return; }
         var checkNo = no.Text.Trim();
         if (string.IsNullOrWhiteSpace(checkNo)) { MessageBox.Show("شماره چک را وارد کنید."); return; }
@@ -159,6 +160,9 @@ Status=@state,PartyName=@party,Notes=@notes,CustomerId=@customer,SupplierId=@sup
                 cmd.Parameters.AddWithValue("@id", id);
                 cmd.ExecuteNonQuery();
             }
+
+            if (editId != 0 && before == "وصول شد" && oldAmount != (long)amount.Value)
+                throw new InvalidOperationException("مبلغ چک وصول‌شده را نمی‌توان تغییر داد. ابتدا وضعیت چک را اصلاح کنید.");
 
             var changedTypeOrParty = editId != 0 && (oldType != type.Text || oldCustomer != customerId || oldSupplier != supplierId || oldParty != partyName);
             if (editId != 0 && before == "وصول شد" && changedTypeOrParty)
