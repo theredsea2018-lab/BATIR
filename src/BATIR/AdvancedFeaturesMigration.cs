@@ -82,6 +82,16 @@ CREATE TABLE IF NOT EXISTS PriceChangeHistory(
 CREATE INDEX IF NOT EXISTS IX_PriceChangeHistory_Batch ON PriceChangeHistory(BatchId,ProductId);
 ";
         cmd.ExecuteNonQuery();
+        Database.AddColumnIfMissing(cn, "Customers", "PriceTier", "TEXT NOT NULL DEFAULT 'Normal'");
+        Database.AddColumnIfMissing(cn, "Products", "TargetMarginPercent", "REAL NOT NULL DEFAULT 0");
+        using var priceTier = cn.CreateCommand();
+        priceTier.CommandText = @"CREATE TABLE IF NOT EXISTS ProductTierPrices(
+ Id INTEGER PRIMARY KEY AUTOINCREMENT, ProductId INTEGER NOT NULL, PriceTier TEXT NOT NULL,
+ Price INTEGER NOT NULL, FromDate TEXT, ToDate TEXT, Active INTEGER NOT NULL DEFAULT 1,
+ UNIQUE(ProductId,PriceTier,FromDate,ToDate), FOREIGN KEY(ProductId) REFERENCES Products(Id) ON DELETE CASCADE);
+CREATE INDEX IF NOT EXISTS IX_ProductTierPrices_ProductTier ON ProductTierPrices(ProductId,PriceTier,Active,FromDate,ToDate);";
+        priceTier.ExecuteNonQuery();
+
 
         using var seed = cn.CreateCommand();
         seed.CommandText = "INSERT OR IGNORE INTO UserRoles(Name,IsSystem) VALUES ('مدیر',1),('فروشنده',1),('انباردار',1); INSERT OR IGNORE INTO TaxSettings(Id,Enabled) VALUES(1,0);";
