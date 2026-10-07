@@ -143,7 +143,6 @@ CREATE INDEX IF NOT EXISTS IX_ProductTierPrices_ProductTier ON ProductTierPrices
             add.Parameters.AddWithValue("@role", roleId); add.Parameters.AddWithValue("@key", key); add.ExecuteNonQuery();
         }
     }
-}
 
     static string GetOrCreateNetworkSyncKey(SqliteConnection cn)
     {
@@ -164,3 +163,4 @@ CREATE INDEX IF NOT EXISTS IX_ProductTierPrices_ProductTier ON ProductTierPrices
         upsert.ExecuteNonQuery();
         return generated;
     }
+
