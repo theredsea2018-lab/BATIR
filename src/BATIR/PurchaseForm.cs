@@ -138,6 +138,7 @@ public class PurchaseForm : Form
                 cash.Parameters.AddWithValue("@sid",sid.Value); cash.Parameters.AddWithValue("@method",paymentMethod.SelectedItem?.ToString() ?? "نقدی"); cash.Parameters.AddWithValue("@rid",iid); cash.ExecuteNonQuery();
             }
             using var au=cn.CreateCommand();au.Transaction=tx;au.CommandText="INSERT INTO AuditLog(DateText,UserName,Action,Entity,EntityId,Details) VALUES(@d,'کاربر','ثبت فاکتور خرید','Invoice',@id,@x)";au.Parameters.AddWithValue("@d",DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));au.Parameters.AddWithValue("@id",iid);au.Parameters.AddWithValue("@x",no+" | مبلغ: "+t+" | مانده: "+outstanding);au.ExecuteNonQuery();
+            NetworkLedgerSyncService.RecordInvoice(cn, tx, iid);
             tx.Commit();MessageBox.Show("فاکتور خرید ثبت شد. شماره: "+no);items.Clear();supplier.Clear();paid.Value=0;paymentMethod.SelectedIndex=0;UpdateTotal();
         }catch(Exception ex){MessageBox.Show("ثبت خرید انجام نشد و تغییرات ذخیره نشد.\n"+ex.Message);}
     }
