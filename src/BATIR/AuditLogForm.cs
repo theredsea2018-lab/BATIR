@@ -12,7 +12,7 @@ public class AuditLogForm : Form
         Text = "BATIR | تاریخچه عملیات"; Width = 1100; Height = 650;
         StartPosition = FormStartPosition.CenterParent; RightToLeft = RightToLeft.Yes; RightToLeftLayout = true;
         var top = new Panel { Dock = DockStyle.Top, Height = 45, Padding = new Padding(8) };
-        search.Dock = DockStyle.Fill; search.PlaceholderText = "جستجو در کاربر، عملیات، موجودیت و جزئیات..."; search.TextChanged += (_, _) => LoadData(); top.Controls.Add(search);
+        search.Dock = DockStyle.Fill; search.TextChanged += (_, _) => LoadData(); top.Controls.Add(search);
         grid.Dock = DockStyle.Fill; grid.ReadOnly = true; grid.AllowUserToAddRows = false; grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         Controls.Add(grid); Controls.Add(top); LoadData();
     }
