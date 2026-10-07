@@ -8,6 +8,12 @@ namespace BATIR
         [STAThread]
         static void Main(string[] args)
         {
+            if (args.Any(a => string.Equals(a, "--self-test-500", StringComparison.OrdinalIgnoreCase)))
+            {
+                Environment.ExitCode = Operational500SelfTest.Run();
+                return;
+            }
+
             if (args.Any(a => string.Equals(a, "--self-test-100", StringComparison.OrdinalIgnoreCase)))
             {
                 Environment.ExitCode = Operational100SelfTest.Run();
