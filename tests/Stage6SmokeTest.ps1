@@ -1,5 +1,5 @@
 param(
-  [string]$ExePath = "src/BATIR/bin/Any CPU/Release/BATIR.exe"
+  [string]$ExePath = "src/BATIR/bin/Any CPU/Release/net48/BATIR.exe"
 )
 
 $ErrorActionPreference = "Stop"
