@@ -30,7 +30,7 @@ public class PurchaseForm : Form
         AddNum(header,"پرداختی",paid,1,1);
         paymentMethod.Dock = DockStyle.Fill;
         paymentMethod.DropDownStyle = ComboBoxStyle.DropDownList;
-        paymentMethod.Items.AddRange(new object[] { "نقدی", "کارتخوان", "انتقال بانکی", "چک" });
+        paymentMethod.Items.AddRange(new object[] { "نقدی", "کارتخوان", "انتقال بانکی" });
         paymentMethod.SelectedIndex = 0;
         header.Controls.Add(paymentMethod,2,1);
         var add = new Button { Text="افزودن به خرید", Dock=DockStyle.Fill };
@@ -56,7 +56,6 @@ public class PurchaseForm : Form
 
     void AddText(TableLayoutPanel t,string label,TextBox box,int c,int r)
     {
-        if(!PermissionService.Require("Purchases.Create", this)) return;
         var p=new Panel{Dock=DockStyle.Fill}; box.Dock=DockStyle.Fill; p.Controls.Add(box);
         p.Controls.Add(new Label{Text=label,Dock=DockStyle.Right,Width=100,TextAlign=ContentAlignment.MiddleRight}); t.Controls.Add(p,c,r);
     }
@@ -69,6 +68,7 @@ public class PurchaseForm : Form
 
     void AddItem()
     {
+        if(!PermissionService.Require("Purchases.Create", this)) return;
         var q=product.Text.Trim(); if(q==""){MessageBox.Show("کالا را وارد کنید.");return;}
         var dt=Database.Query("SELECT Id,Name,PurchasePrice FROM Products WHERE Active=1 AND (Barcode=@q OR Name LIKE @like) ORDER BY CASE WHEN Barcode=@q THEN 0 ELSE 1 END,Id DESC LIMIT 1",
             new SqliteParameter("@q",q),new SqliteParameter("@like","%"+q+"%"));
@@ -77,8 +77,10 @@ public class PurchaseForm : Form
         string n=Convert.ToString(dt.Rows[0]["Name"])??"";
         long price=unitPrice.Value>0?(long)unitPrice.Value:Convert.ToInt64(dt.Rows[0]["PurchasePrice"]);
         long qnty=(long)qty.Value, disc=(long)discount.Value;
+        long newLineTotal = qnty * price;
+        if (disc > newLineTotal) { MessageBox.Show("تخفیف نمی‌تواند بیشتر از مبلغ ردیف خرید باشد."); return; }
         foreach(DataRow r in items.Rows) if(Convert.ToInt64(r["ProductId"])==id)
-        { r["تعداد"]=Convert.ToInt64(r["تعداد"])+qnty; r["فی"]=price; r["تخفیف"]=Convert.ToInt64(r["تخفیف"])+disc; r["جمع"]=Convert.ToInt64(r["تعداد"])*price-Convert.ToInt64(r["تخفیف"]); UpdateTotal(); return; }
+        { var newQty=Convert.ToInt64(r["تعداد"])+qnty; var newDisc=Convert.ToInt64(r["تخفیف"])+disc; var lineTotal=newQty*price; if(newDisc>lineTotal){MessageBox.Show("تخفیف تجمعی این کالا نمی‌تواند بیشتر از مبلغ ردیف خرید باشد.");return;} r["تعداد"]=newQty; r["فی"]=price; r["تخفیف"]=newDisc; r["جمع"]=lineTotal-newDisc; UpdateTotal(); return; }
         var row=items.NewRow(); row["ProductId"]=id;row["کالا"]=n;row["تعداد"]=qnty;row["فی"]=price;row["تخفیف"]=disc;row["جمع"]=qnty*price-disc;items.Rows.Add(row);
         product.Clear();qty.Value=1;unitPrice.Value=0;discount.Value=0;UpdateTotal();
     }
@@ -88,8 +90,13 @@ public class PurchaseForm : Form
 
     void SavePurchase()
     {
+        if(!PermissionService.Require("Purchases.Create", this)) return;
         if(items.Rows.Count==0){MessageBox.Show("خرید خالی است.");return;}
-        long t=Total(), p=(long)paid.Value;if(p>t){MessageBox.Show("پرداختی بیشتر از مبلغ خرید است.");return;}
+        long t=Total(), p=(long)paid.Value;
+        if(t<=0){MessageBox.Show("مبلغ خرید باید بیشتر از صفر باشد.");return;}
+        if(p>t){MessageBox.Show("پرداختی بیشتر از مبلغ خرید است.");return;}
+        if((p>0 || t-p>0) && string.IsNullOrWhiteSpace(supplier.Text)){MessageBox.Show("برای ثبت مبلغ پرداختی یا مانده خرید، تأمین‌کننده را مشخص کنید.");return;}
+        foreach(DataRow r in items.Rows){ var qv=Convert.ToInt64(r["تعداد"]); var pv=Convert.ToInt64(r["فی"]); var dv=Convert.ToInt64(r["تخفیف"]); if(qv<=0 || pv<0 || dv<0 || dv>qv*pv) throw new InvalidOperationException("مقدار یا تخفیف یکی از اقلام خرید نامعتبر است."); }
         try{
             using var cn=Database.Open();using var tx=cn.BeginTransaction();
             long? sid=null;string sn=supplier.Text.Trim();
