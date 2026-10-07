@@ -8,7 +8,7 @@ internal static class BackupService
     {
         try
         {
-            if (!IsEnabled()) return;
+            if (!FeatureSettings.IsEnabled("AutomaticBackup", true) || !IsEnabled()) return;
             var hours = GetInt("AutoBackupIntervalHours", 24, 1, 720);
             var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BATIR", "Backups");
             Directory.CreateDirectory(folder);
