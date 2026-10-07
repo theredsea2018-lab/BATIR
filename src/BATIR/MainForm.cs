@@ -39,6 +39,7 @@ public class MainForm : Form
     readonly TextBox customerAddress = new();
     readonly TextBox customerNotes = new();
     readonly NumericUpDown customerCreditLimit = new() { Minimum = 0, Maximum = 999999999999 };
+    readonly ComboBox customerPriceTier = new() { DropDownStyle = ComboBoxStyle.DropDownList };
     readonly NumericUpDown customerPayment = new() { Minimum = 0, Maximum = 999999999999 };
     long editingCustomerId = 0;
 
@@ -327,25 +328,27 @@ public class MainForm : Form
         customerSearch.TextChanged += (_, _) => LoadCustomers(customerSearch.Text.Trim());
         searchPanel.Controls.Add(customerSearch);
 
-        var form = new TableLayoutPanel { Dock = DockStyle.Top, Height = 125, ColumnCount = 4, RowCount = 2, Padding = new Padding(4) };
+        var form = new TableLayoutPanel { Dock = DockStyle.Top, Height = 165, ColumnCount = 4, RowCount = 3, Padding = new Padding(4) };
         for (int i = 0; i < 4; i++) form.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
         AddText(form, "نام مشتری", customerName, 0, 0);
         AddText(form, "تلفن", customerPhone, 1, 0);
         AddText(form, "آدرس", customerAddress, 2, 0);
         AddNum(form, "سقف اعتبار", customerCreditLimit, 3, 0);
+        customerPriceTier.Items.AddRange(new object[] { "Normal", "Wholesale", "Partner", "Representative", "Special" }); customerPriceTier.SelectedIndex = 0;
+        AddText(form, "نوع قیمت", customerPriceTier, 0, 1);
         AddText(form, "توضیحات", customerNotes, 0, 1);
 
         var save = new Button { Text = "ثبت / ویرایش مشتری", Dock = DockStyle.Fill };
         save.Click += (_, _) => SaveCustomer();
-        form.Controls.Add(save, 1, 1);
+        form.Controls.Add(save, 1, 2);
 
         var payment = new Button { Text = "ثبت دریافت از مشتری", Dock = DockStyle.Fill };
         payment.Click += (_, _) => RecordCustomerPayment();
-        form.Controls.Add(payment, 2, 1);
+        form.Controls.Add(payment, 2, 2);
 
         var cancel = new Button { Text = "پاک کردن فرم", Dock = DockStyle.Fill };
         cancel.Click += (_, _) => ClearCustomerForm();
-        form.Controls.Add(cancel, 3, 1);
+        form.Controls.Add(cancel, 3, 2);
 
         var paymentPanel = new Panel { Dock = DockStyle.Top, Height = 42, Padding = new Padding(4) };
         AddNumToPanel(paymentPanel, "مبلغ دریافت", customerPayment);
@@ -391,7 +394,7 @@ CreditLimit AS [سقف اعتبار], Balance AS [مانده بدهکار] FROM 
     {
         if (customerGrid.Rows[rowIndex].Cells["Id"].Value == null) return;
         editingCustomerId = Convert.ToInt64(customerGrid.Rows[rowIndex].Cells["Id"].Value);
-        var dt = Database.Query("SELECT Name,Phone,Address,CreditLimit,Balance,Notes FROM Customers WHERE Id=@id",
+        var dt = Database.Query("SELECT Name,Phone,Address,CreditLimit,Balance,Notes,PriceTier FROM Customers WHERE Id=@id",
             new SqliteParameter("@id", editingCustomerId));
         if (dt.Rows.Count == 0) return;
         customerName.Text = Convert.ToString(dt.Rows[0]["Name"]) ?? "";
@@ -399,6 +402,7 @@ CreditLimit AS [سقف اعتبار], Balance AS [مانده بدهکار] FROM 
         customerAddress.Text = Convert.ToString(dt.Rows[0]["Address"]) ?? "";
         customerCreditLimit.Value = Math.Max(0, Convert.ToDecimal(dt.Rows[0]["CreditLimit"]));
         customerNotes.Text = Convert.ToString(dt.Rows[0]["Notes"]) ?? "";
+        var tier = Convert.ToString(dt.Rows[0]["PriceTier"]) ?? "Normal"; customerPriceTier.SelectedItem = tier; if (customerPriceTier.SelectedIndex < 0) customerPriceTier.SelectedIndex = 0;
         customerPayment.Value = 0;
     }
 
@@ -411,24 +415,26 @@ CreditLimit AS [سقف اعتبار], Balance AS [مانده بدهکار] FROM 
         }
         if (editingCustomerId == 0)
         {
-            Database.Execute(@"INSERT INTO Customers(Name,Phone,Address,CreditLimit,Balance,Notes)
-VALUES(@name,@phone,@address,@limit,0,@notes)",
-                new SqliteParameter("@name", customerName.Text.Trim()),
-                new SqliteParameter("@phone", customerPhone.Text.Trim()),
-                new SqliteParameter("@address", customerAddress.Text.Trim()),
-                new SqliteParameter("@limit", (long)customerCreditLimit.Value),
-                new SqliteParameter("@notes", customerNotes.Text.Trim()));
-            status.Text = "مشتری جدید ثبت شد";
-        }
-        else
-        {
-            Database.Execute(@"UPDATE Customers SET Name=@name,Phone=@phone,Address=@address,
-CreditLimit=@limit,Notes=@notes WHERE Id=@id",
+            Database.Execute(@"INSERT INTO Customers(Name,Phone,Address,CreditLimit,Balance,Notes,PriceTier)
+VALUES(@name,@phone,@address,@limit,0,@notes,@tier)",
                 new SqliteParameter("@name", customerName.Text.Trim()),
                 new SqliteParameter("@phone", customerPhone.Text.Trim()),
                 new SqliteParameter("@address", customerAddress.Text.Trim()),
                 new SqliteParameter("@limit", (long)customerCreditLimit.Value),
                 new SqliteParameter("@notes", customerNotes.Text.Trim()),
+                new SqliteParameter("@tier", customerPriceTier.SelectedItem?.ToString() ?? "Normal"));
+            status.Text = "مشتری جدید ثبت شد";
+        }
+        else
+        {
+            Database.Execute(@"UPDATE Customers SET Name=@name,Phone=@phone,Address=@address,
+CreditLimit=@limit,Notes=@notes,PriceTier=@tier WHERE Id=@id",
+                new SqliteParameter("@name", customerName.Text.Trim()),
+                new SqliteParameter("@phone", customerPhone.Text.Trim()),
+                new SqliteParameter("@address", customerAddress.Text.Trim()),
+                new SqliteParameter("@limit", (long)customerCreditLimit.Value),
+                new SqliteParameter("@notes", customerNotes.Text.Trim()),
+                new SqliteParameter("@tier", customerPriceTier.SelectedItem?.ToString() ?? "Normal"),
                 new SqliteParameter("@id", editingCustomerId));
             status.Text = "اطلاعات مشتری ویرایش شد";
         }
@@ -500,6 +506,7 @@ VALUES(@date,'کاربر','دریافت از مشتری','Customer',@id,@details
         customerPhone.Clear();
         customerAddress.Clear();
         customerNotes.Clear();
+        if (customerPriceTier.Items.Count > 0) customerPriceTier.SelectedIndex = 0;
         customerCreditLimit.Value = 0;
         customerPayment.Value = 0;
     }
