@@ -162,7 +162,7 @@ CREATE INDEX IF NOT EXISTS IX_CashTransactions_SupplierId ON CashTransactions(Su
         DataIntegrityService.Run(cn);
     }
 
-    static void AddColumnIfMissing(SqliteConnection cn, string table, string column, string definition)
+    internal static void AddColumnIfMissing(SqliteConnection cn, string table, string column, string definition)
     {
         using var check = cn.CreateCommand();
         check.CommandText = $"PRAGMA table_info({table});";
