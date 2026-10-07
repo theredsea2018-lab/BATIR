@@ -205,6 +205,12 @@ public class MainForm : Form
         inventoryOpsButton.Click += (_,_) => new InventoryTransferForm().ShowDialog(this);
         inventoryOpsPage.Controls.Add(inventoryOpsButton); tabs.TabPages.Add(inventoryOpsPage);
 
+        var advancedPage = new TabPage("امکانات پیشرفته");
+        var advancedButton = new Button { Text = "بانک، بودجه، نقدینگی، شبکه، OCR و دسترسی کاربران", Dock = DockStyle.Top, Height = 70 };
+        advancedButton.Click += (_, _) => new AdvancedFeaturesForm().ShowDialog(this);
+        advancedPage.Controls.Add(advancedButton);
+        tabs.TabPages.Add(advancedPage);
+
         if (FeatureSettings.IsEnabled("DueReminders", true))
         {
             var remindersPage = new TabPage("یادآوری سررسیدها");
