@@ -41,7 +41,7 @@ jobs:
         run: msbuild src/BATIR/BATIR.csproj /p:Configuration=Release /p:Platform="Any CPU" /p:Restore=false
 
       - name: Database smoke test
-        run: '& "src/BATIR/bin/Any CPU/Release/BATIR.exe" --self-test'
+        run: '& "src/BATIR/bin/Any CPU/Release/net48/BATIR.exe" --self-test'
 
       - name: Operational 100 smoke test
         run: '& "src/BATIR/bin/Any CPU/Release/BATIR.exe" --self-test-100'
@@ -69,7 +69,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release | Out-Null
-          Copy-Item -Recurse -Force "src/BATIR/bin/Any CPU/Release/*" release/
+          Copy-Item -Recurse -Force "src/BATIR/bin/Any CPU/Release/net48/*" release/
           Compress-Archive -Path release/* -DestinationPath BATIR-Windows-Portable.zip -Force
           if (-not (Test-Path "BATIR-Windows-Portable.zip")) { throw "Portable ZIP was not produced." }
 
