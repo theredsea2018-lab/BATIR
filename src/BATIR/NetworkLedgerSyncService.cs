@@ -61,13 +61,13 @@ internal static class NetworkLedgerSyncService
         [DataMember(Order = 15)] public long Discount { get; set; }
     }
 
-    public static string EnsureDeviceId(SqliteConnection cn)
+    public static string EnsureDeviceId(SqliteConnection cn, SqliteTransaction? tx = null)
     {
-        var existing = TextScalar(cn, null, "SELECT Value FROM Settings WHERE Key='SyncDeviceId' LIMIT 1;");
+        var existing = TextScalar(cn, tx, "SELECT Value FROM Settings WHERE Key='SyncDeviceId' LIMIT 1;");
         if (!string.IsNullOrWhiteSpace(existing)) return existing!;
 
         var id = Guid.NewGuid().ToString("N");
-        Exec(cn, null, @"INSERT INTO Settings(Key,Value,UpdatedAt) VALUES('SyncDeviceId',@id,datetime('now'))
+        Exec(cn, tx, @"INSERT INTO Settings(Key,Value,UpdatedAt) VALUES('SyncDeviceId',@id,datetime('now'))
 ON CONFLICT(Key) DO UPDATE SET Value=excluded.Value,UpdatedAt=datetime('now');", ("@id", id));
         return id;
     }
@@ -105,7 +105,7 @@ WHERE Status='Pending' ORDER BY Id LIMIT 250;");
 
         var bytes = SerializeBytes(batch);
         ValidatePayload(bytes);
-        var hash = SHA256.HashData(bytes);
+        var hash = SHA256.Create().ComputeHash(bytes);
         var mac = ComputeMac(hash);
 
         using var client = new TcpClient();
@@ -153,9 +153,10 @@ WHERE Status='Pending' ORDER BY Id LIMIT 250;");
             var length = await ReadInt64Async(stream, cancellationToken);
             if (length <= 0 || length > MaxPayloadBytes) throw new InvalidDataException("حجم بسته همگام‌سازی نامعتبر است.");
 
-            var bytes = new byte[length];
+            if (length > int.MaxValue) throw new InvalidDataException("بسته همگام‌سازی بیش از ظرفیت حافظه است.");
+            var bytes = new byte[(int)length];
             await ReadExactlyAsync(stream, bytes, cancellationToken);
-            var actualHash = SHA256.HashData(bytes);
+            var actualHash = SHA256.Create().ComputeHash(bytes);
             if (!FixedEquals(expectedHash, actualHash) || !FixedEquals(expectedMac, ComputeMac(actualHash)))
                 throw new InvalidDataException("صحت یا کلید امنیتی بسته شبکه تأیید نشد.");
 
@@ -397,7 +398,7 @@ WHERE i.Id=@id;", ("@id", invoiceId));
         var packet = new SyncInvoicePacket
         {
             OperationId = Guid.NewGuid().ToString("N"),
-            DeviceId = EnsureDeviceId(cn),
+            DeviceId = EnsureDeviceId(cn, tx),
             InvoiceExternalId = Convert.ToString(row["ExternalId"]) ?? "",
             InvoiceNo = Convert.ToString(row["InvoiceNo"]) ?? "",
             Type = Convert.ToString(row["Type"]) ?? "",
