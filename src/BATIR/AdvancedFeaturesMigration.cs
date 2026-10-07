@@ -73,6 +73,13 @@ CREATE INDEX IF NOT EXISTS IX_Orders_Date ON Orders(DateText);
 CREATE INDEX IF NOT EXISTS IX_Orders_TypeStatus ON Orders(Type,Status);
 CREATE INDEX IF NOT EXISTS IX_Reminders_DueDate ON Reminders(DueDate,Done);
 CREATE INDEX IF NOT EXISTS IX_TaxDocuments_Invoice ON TaxDocuments(InvoiceId);
+CREATE TABLE IF NOT EXISTS PriceChangeHistory(
+ Id INTEGER PRIMARY KEY AUTOINCREMENT, BatchId TEXT NOT NULL, ProductId INTEGER NOT NULL,
+ ChangedAt TEXT NOT NULL, UserName TEXT, Mode TEXT NOT NULL,
+ OldPurchasePrice INTEGER NOT NULL, NewPurchasePrice INTEGER NOT NULL,
+ OldSalePrice INTEGER NOT NULL, NewSalePrice INTEGER NOT NULL,
+ FOREIGN KEY(ProductId) REFERENCES Products(Id));
+CREATE INDEX IF NOT EXISTS IX_PriceChangeHistory_Batch ON PriceChangeHistory(BatchId,ProductId);
 ";
         cmd.ExecuteNonQuery();
 
