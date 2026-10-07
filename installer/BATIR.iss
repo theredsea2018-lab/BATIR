@@ -20,7 +20,7 @@ PrivilegesRequired=admin
 UninstallDisplayName=BATIR | باتیر
 
 [Files]
-Source: "..\src\BATIR\bin\Any CPU\Release\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
+Source: "..\src\BATIR\bin\Any CPU\Release\net48\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 
 [Icons]
 Name: "{autodesktop}\BATIR"; Filename: "{app}\{#AppExeName}"
