@@ -599,7 +599,7 @@ WHERE Active=1 AND (Barcode=@q OR Name LIKE @like) ORDER BY CASE WHEN Barcode=@q
 
         long id = Convert.ToInt64(dt.Rows[0]["Id"]);
         string productName = Convert.ToString(dt.Rows[0]["Name"]) ?? "";
-        long price = Convert.ToInt64(dt.Rows[0]["SalePrice"]);
+        long price = ResolveCustomerTierPrice(id, Convert.ToInt64(dt.Rows[0]["SalePrice"]));
         long available = Convert.ToInt64(dt.Rows[0]["Stock"]);
         long qty = (long)invoiceQty.Value;
         if (qty > available) {
