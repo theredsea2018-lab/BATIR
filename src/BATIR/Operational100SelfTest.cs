@@ -25,9 +25,9 @@ internal static class Operational100SelfTest
                 Require((TextScalar(cn, tx, "SELECT Details FROM AuditLog WHERE Id=@id;", ("@id", auditId)) ?? "").EndsWith("-updated"), "Audit update"); // 4
 
                 Exec(cn, tx, "INSERT INTO Settings(Key,Value,UpdatedAt) VALUES(@k,'one',datetime('now'));", ("@k", key)); // 5
-                Require(Convert.ToString(Scalar(cn, tx, "SELECT Value FROM Settings WHERE Key=@k;", ("@k", key))) == "one", "Setting insert"); // 6
+                Require((TextScalar(cn, tx, "SELECT Value FROM Settings WHERE Key=@k;", ("@k", key)) ?? "") == "one", "Setting insert"); // 6
                 Exec(cn, tx, "UPDATE Settings SET Value='two',UpdatedAt=datetime('now') WHERE Key=@k;", ("@k", key)); // 7
-                Require(Convert.ToString(Scalar(cn, tx, "SELECT Value FROM Settings WHERE Key=@k;", ("@k", key))) == "two", "Setting update"); // 8
+                Require((TextScalar(cn, tx, "SELECT Value FROM Settings WHERE Key=@k;", ("@k", key)) ?? "") == "two", "Setting update"); // 8
                 Exec(cn, tx, "DELETE FROM Settings WHERE Key=@k;", ("@k", key)); // 9
                 Require(Convert.ToInt64(Scalar(cn, tx, "SELECT COUNT(*) FROM Settings WHERE Key=@k;", ("@k", key))) == 0, "Setting delete"); // 10
 
