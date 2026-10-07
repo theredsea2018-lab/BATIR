@@ -319,8 +319,8 @@ FROM InventoryMovements m JOIN Products p ON p.Id=m.ProductId ORDER BY m.DateTex
         try
         {
             using var cmd=cn.CreateCommand(); cmd.Transaction=tx;
-            cmd.CommandText=@"SELECT COALESCE(SUM(CASE WHEN Type IN ('CustomerReceipt','SalePayment') THEN Amount ELSE 0 END),0)
--COALESCE(SUM(CASE WHEN Type IN ('SupplierPayment','Expense') THEN Amount ELSE 0 END),0) FROM CashTransactions WHERE DateText>=COALESCE((SELECT MAX(ClosedAt) FROM CashShifts),'0000-00-00 00:00:00');";
+            cmd.CommandText=@"SELECT COALESCE(SUM(CASE WHEN Type IN ('CustomerReceipt','SalePayment') AND PaymentMethod='نقدی' THEN Amount ELSE 0 END),0)
+-COALESCE(SUM(CASE WHEN Type IN ('SupplierPayment','Expense') AND PaymentMethod='نقدی' THEN Amount ELSE 0 END),0) FROM CashTransactions WHERE DateText>=COALESCE((SELECT MAX(ClosedAt) FROM CashShifts),'0000-00-00 00:00:00');";
             var net=Convert.ToInt64(cmd.ExecuteScalar()??0);
             var expected=Convert.ToInt64(openingCash.Value)+net;
             using var ins=cn.CreateCommand(); ins.Transaction=tx;
