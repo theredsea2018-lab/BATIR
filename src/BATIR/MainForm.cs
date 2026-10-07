@@ -236,7 +236,7 @@ public class MainForm : Form
             Dock = DockStyle.Top,
             Height = 70,
             BackColor = Color.FromArgb(205, 219, 237),
-            Padding = new Padding(10, 8)
+            Padding = new Padding(10, 8, 10, 8)
         };
 
         var title = new Label
