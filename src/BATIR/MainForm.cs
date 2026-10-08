@@ -152,13 +152,13 @@ public class MainForm : Form
         TabPage SimplePage(string title, string actionText, Action action)
         {
             var page = new TabPage(title);
-            var host = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(245, 247, 250), Padding = new Padding(24) };
+            var host = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(242, 242, 242), Padding = new Padding(10) };
             var button = new Button
             {
                 Text = actionText,
                 Dock = DockStyle.Top,
-                Height = 62,
-                Font = new Font("Tahoma", 10, FontStyle.Bold),
+                Height = 44,
+                Font = new Font("Tahoma", 9, FontStyle.Bold),
                 BackColor = Color.FromArgb(223, 233, 246),
                 FlatStyle = FlatStyle.Flat
             };
@@ -170,19 +170,32 @@ public class MainForm : Form
         }
 
         var home = new TabPage("خانه");
-        var homeRoot = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(222, 229, 238), Padding = new Padding(18) };
+        var homeRoot = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(232, 232, 232), Padding = new Padding(8) };
         var homeTitle = new Label
         {
-            Text = "باتیر | حسابداری و انبارداری",
+            Text = "باتیر | سیستم حسابداری و انبارداری",
             Dock = DockStyle.Top,
-            Height = 55,
-            Font = new Font("Tahoma", 17, FontStyle.Bold),
-            ForeColor = Color.FromArgb(32, 63, 104),
-            TextAlign = ContentAlignment.MiddleCenter
+            Height = 38,
+            Font = new Font("Tahoma", 13, FontStyle.Bold),
+            ForeColor = Color.FromArgb(45, 62, 78),
+            TextAlign = ContentAlignment.MiddleRight,
+            Padding = new Padding(6, 0, 6, 0)
         };
-        var quick = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 3, Padding = new Padding(12) };
-        for (int i = 0; i < 4; i++) quick.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
-        for (int i = 0; i < 3; i++) quick.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33f));
+        var homeInfo = new Label
+        {
+            Text = "عملیات سریع  |  فروش، خرید، اشخاص، انبار، چک و گزارش‌ها",
+            Dock = DockStyle.Top,
+            Height = 28,
+            Font = new Font("Tahoma", 8.5f, FontStyle.Regular),
+            ForeColor = Color.FromArgb(78, 91, 105),
+            TextAlign = ContentAlignment.MiddleRight,
+            BorderStyle = BorderStyle.FixedSingle,
+            BackColor = Color.FromArgb(246, 246, 246),
+            Padding = new Padding(6, 0, 6, 0)
+        };
+        var quick = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 5, RowCount = 4, Padding = new Padding(4), CellBorderStyle = TableLayoutPanelCellBorderStyle.Single };
+        for (int i = 0; i < 5; i++) quick.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20));
+        for (int i = 0; i < 4; i++) quick.RowStyles.Add(new RowStyle(SizeType.Percent, 25));
 
         void QuickButton(string text, int col, int row, Action action)
         {
@@ -190,17 +203,18 @@ public class MainForm : Form
             {
                 Text = text,
                 Dock = DockStyle.Fill,
-                Margin = new Padding(7),
-                Font = new Font("Tahoma", 10, FontStyle.Bold),
-                BackColor = Color.FromArgb(239, 244, 250),
+                Margin = new Padding(3),
+                Font = new Font("Tahoma", 9, FontStyle.Bold),
+                BackColor = Color.FromArgb(235, 239, 244),
                 FlatStyle = FlatStyle.Flat
             };
-            b.FlatAppearance.BorderColor = Color.FromArgb(137, 160, 190);
+            b.FlatAppearance.BorderColor = Color.FromArgb(145, 154, 163);
             b.Click += (_, _) => action();
             quick.Controls.Add(b, col, row);
         }
 
         homeRoot.Controls.Add(quick);
+        homeRoot.Controls.Add(homeInfo);
         homeRoot.Controls.Add(homeTitle);
         home.Controls.Add(homeRoot);
         AddPage(home);
@@ -234,8 +248,8 @@ public class MainForm : Form
         var header = new Panel
         {
             Dock = DockStyle.Top,
-            Height = 70,
-            BackColor = Color.FromArgb(205, 219, 237),
+            Height = 58,
+            BackColor = Color.FromArgb(214, 220, 226),
             Padding = new Padding(10, 8, 10, 8)
         };
 
@@ -243,8 +257,8 @@ public class MainForm : Form
         {
             Text = "باتیر",
             Dock = DockStyle.Left,
-            Width = 175,
-            Font = new Font("Tahoma", 17, FontStyle.Bold),
+            Width = 145,
+            Font = new Font("Tahoma", 15, FontStyle.Bold),
             ForeColor = Color.FromArgb(28, 61, 102),
             TextAlign = ContentAlignment.MiddleLeft
         };
@@ -253,8 +267,8 @@ public class MainForm : Form
         {
             Text = "حسابداری | انبارداری | فروش",
             Dock = DockStyle.Left,
-            Width = 235,
-            Font = new Font("Tahoma", 9, FontStyle.Regular),
+            Width = 215,
+            Font = new Font("Tahoma", 8.5f, FontStyle.Regular),
             ForeColor = Color.FromArgb(63, 83, 106),
             TextAlign = ContentAlignment.MiddleLeft
         };
@@ -262,7 +276,7 @@ public class MainForm : Form
         var actions = new FlowLayoutPanel
         {
             Dock = DockStyle.Right,
-            Width = 560,
+            Width = 545,
             FlowDirection = FlowDirection.RightToLeft,
             WrapContents = false,
             Padding = new Padding(2)
@@ -273,8 +287,8 @@ public class MainForm : Form
             var b = new Button
             {
                 Text = text,
-                Width = 105,
-                Height = 44,
+                Width = 100,
+                Height = 38,
                 Margin = new Padding(3),
                 Font = new Font("Tahoma", 9, FontStyle.Bold),
                 BackColor = Color.FromArgb(238, 244, 251),
@@ -298,8 +312,8 @@ public class MainForm : Form
         var nav = new Panel
         {
             Dock = DockStyle.Right,
-            Width = 218,
-            BackColor = Color.FromArgb(211, 223, 240),
+            Width = 205,
+            BackColor = Color.FromArgb(224, 227, 230),
             Padding = new Padding(7)
         };
 
@@ -328,10 +342,10 @@ public class MainForm : Form
             menu.Controls.Add(new Label
             {
                 Text = text,
-                Width = 194,
-                Height = 27,
+                Width = 181,
+                Height = 24,
                 Margin = new Padding(2, 7, 2, 2),
-                Font = new Font("Tahoma", 8.5f, FontStyle.Bold),
+                Font = new Font("Tahoma", 8f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(78, 103, 132),
                 TextAlign = ContentAlignment.MiddleRight
             });
@@ -342,8 +356,8 @@ public class MainForm : Form
             var b = new Button
             {
                 Text = text,
-                Width = 194,
-                Height = primary ? 43 : 38,
+                Width = 181,
+                Height = primary ? 38 : 34,
                 Margin = new Padding(2),
                 Font = new Font("Tahoma", 9, primary ? FontStyle.Bold : FontStyle.Regular),
                 BackColor = primary ? Color.FromArgb(189, 210, 235) : Color.FromArgb(231, 238, 247),
@@ -402,18 +416,27 @@ public class MainForm : Form
         nav.Controls.Add(menu);
         nav.Controls.Add(navTitle);
 
-        QuickButton("فاکتور فروش", 0, 0, () => SelectPage(invoices));
-        QuickButton("فاکتور خرید", 1, 0, () => SelectPage(purchasePage));
-        QuickButton("مشتریان", 2, 0, () => SelectPage(customers));
-        QuickButton("کالا و انبار", 3, 0, () => SelectPage(products));
-        QuickButton("دریافت / پرداخت", 0, 1, () => SelectPage(financePage));
-        QuickButton("چک‌ها", 1, 1, () => SelectPage(checks));
-        QuickButton("جستجوی اسناد", 2, 1, () => SelectPage(documentSearchPage));
-        QuickButton("گزارش موجودی و سود", 3, 1, () => SelectPage(reportPage));
+        QuickButton("ثبت فروش", 0, 0, () => SelectPage(invoices));
+        QuickButton("ثبت خرید", 1, 0, () => SelectPage(purchasePage));
+        QuickButton("برگشت فروش", 2, 0, () => SelectPage(returnsPage));
+        QuickButton("برگشت خرید", 3, 0, () => SelectPage(purchaseReturnsPage));
+        QuickButton("دریافت / پرداخت", 4, 0, () => SelectPage(financePage));
+        QuickButton("مشتریان", 0, 1, () => SelectPage(customers));
+        QuickButton("تأمین‌کنندگان", 1, 1, () => SelectPage(suppliersPage));
+        QuickButton("چک‌ها", 2, 1, () => SelectPage(checks));
+        QuickButton("کالاها", 3, 1, () => SelectPage(products));
+        QuickButton("موجودی / انتقال", 4, 1, () => SelectPage(inventoryOpsPage));
         QuickButton("انبارگردانی", 0, 2, () => SelectPage(stocktakingPage));
-        QuickButton("بدهکاران / بستانکاران", 1, 2, () => SelectPage(debtorsPage));
-        QuickButton("تنظیمات", 2, 2, () => SelectPage(settingsPage));
-        QuickButton("امکانات پیشرفته", 3, 2, () => SelectPage(advancedPage));
+        QuickButton("جستجوی اسناد", 1, 2, () => SelectPage(documentSearchPage));
+        QuickButton("گزارش موجودی و سود", 2, 2, () => SelectPage(reportPage));
+        QuickButton("بدهکاران / بستانکاران", 3, 2, () => SelectPage(debtorsPage));
+        QuickButton("کنترل و گزارش", 4, 2, () => SelectPage(stage2Page));
+        QuickButton("تنظیمات", 0, 3, () => SelectPage(settingsPage));
+        QuickButton("امکانات پیشرفته", 1, 3, () => SelectPage(advancedPage));
+        QuickButton("پشتیبان‌گیری", 2, 3, Backup);
+        QuickButton("بازیابی", 3, 3, RestoreBackup);
+        if (remindersPage != null)
+            QuickButton("یادآوری سررسید", 4, 3, () => SelectPage(remindersPage));
 
         homeRoot.BackColor = Color.FromArgb(229, 234, 241);
         tabs.SelectedTab = home;
