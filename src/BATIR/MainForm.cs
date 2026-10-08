@@ -1289,6 +1289,12 @@ VALUES(@date,'SalePayment',@amount,@description,'کاربر',@customer,@method,'
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
     {
+        if (keyData == (Keys.Control | Keys.S))
+        {
+            SaveDraftInvoice();
+            status.Text = "پیش‌نویس فاکتور ذخیره شد | " + CurrencyName();
+            return true;
+        }
         if (keyData == Keys.F9)
         {
             SaveInvoice();
