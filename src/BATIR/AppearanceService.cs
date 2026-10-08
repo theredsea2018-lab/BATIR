@@ -4,7 +4,6 @@ namespace BATIR;
 
 internal static class AppearanceService
 {
-    // BATIR classic accounting appearance: compact, readable, form/table oriented.
     static readonly Color Window = Color.FromArgb(238, 238, 238);
     static readonly Color Surface = Color.FromArgb(245, 245, 245);
     static readonly Color Header = Color.FromArgb(218, 226, 234);
@@ -12,6 +11,7 @@ internal static class AppearanceService
     static readonly Color Border = Color.FromArgb(154, 164, 174);
     static readonly Color Accent = Color.FromArgb(211, 224, 237);
     static readonly Color AccentStrong = Color.FromArgb(188, 207, 226);
+    static readonly HashSet<Form> StyledForms = new();
 
     public static void Apply(Form form)
     {
@@ -44,11 +44,29 @@ internal static class AppearanceService
         }
     }
 
+    public static void ApplyOpenForms()
+    {
+        foreach (var form in Application.OpenForms.Cast<Form>().ToArray())
+        {
+            if (form.IsDisposed) { StyledForms.Remove(form); continue; }
+            if (StyledForms.Contains(form)) continue;
+            try
+            {
+                Apply(form);
+                StyledForms.Add(form);
+            }
+            catch
+            {
+                // Styling must never prevent an accounting window from opening.
+            }
+        }
+    }
+
     static void ApplyControls(Control root, float fontSize)
     {
         foreach (Control c in root.Controls)
         {
-            c.Font = new Font(root.Font.FontFamily, Math.Max(8, fontSize), FontStyle.Regular);
+            c.Font = new Font(root.Font.FontFamily, Math.Max(8, fontSize), c.Font.Bold ? FontStyle.Bold : FontStyle.Regular);
 
             if (c is Panel panel)
             {
@@ -86,6 +104,14 @@ internal static class AppearanceService
             {
                 numeric.BackColor = Color.White;
             }
+            else if (c is CheckBox check)
+            {
+                check.ForeColor = Color.FromArgb(45, 55, 65);
+            }
+            else if (c is GroupBox group)
+            {
+                group.ForeColor = HeaderDark;
+            }
             else if (c is DataGridView grid)
             {
                 grid.BackgroundColor = Surface;
@@ -104,6 +130,10 @@ internal static class AppearanceService
                 grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
                 grid.RowTemplate.Height = Math.Max(25, grid.RowTemplate.Height);
             }
+            else if (c is TabControl tabs)
+            {
+                tabs.BackColor = Window;
+            }
 
             if (c.Controls.Count > 0)
                 ApplyControls(c, fontSize);
@@ -119,6 +149,7 @@ internal static class AppearanceService
         Set(cn, tx, "UiBackgroundColor", ColorToString(color));
         Set(cn, tx, "UiBackgroundImage", imagePath);
         tx.Commit();
+        StyledForms.Clear();
     }
 
     static string Get(string key, string fallback)
