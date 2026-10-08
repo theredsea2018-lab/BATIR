@@ -17,11 +17,11 @@ public class SettingsForm : Form
     readonly CheckBox negativeStock = new() { Text = "اجازه فروش با موجودی منفی", AutoSize = true };
     readonly Dictionary<string, CheckBox> featureChecks = new();
     readonly ComboBox currentRole = new();
-    readonly Button save = new() { Text = "ذخیره تنظیمات", Dock = DockStyle.Bottom, Height = 55 };
+    readonly Button save = new() { Text = "ذخیره تنظیمات", Dock = DockStyle.Bottom, Height = 46 };
 
     public SettingsForm()
     {
-        Text = "BATIR | تنظیمات"; Width = 900; Height = 840; StartPosition = FormStartPosition.CenterParent;
+        Text = "BATIR | تنظیمات"; Width = 860; Height = 760; StartPosition = FormStartPosition.CenterParent;
         RightToLeft = RightToLeft.Yes; RightToLeftLayout = true;
         currency.DropDownStyle = ComboBoxStyle.DropDown; currency.Items.AddRange(new object[] { "ریال", "تومان" });
         language.Items.AddRange(new object[] { "فارسی", "English" }); language.DropDownStyle = ComboBoxStyle.DropDownList;
@@ -42,7 +42,7 @@ public class SettingsForm : Form
         var advanced = new Button { Text = "مرکز امکانات پیشرفته: بانک، بودجه، نقدینگی، ممیزی و شبکه", Dock = DockStyle.Fill, Height = 42 }; advanced.Click += (_, _) => new AdvancedFeaturesForm().ShowDialog(this); table.Controls.Add(advanced, 1, 15);
         root.Controls.Add(table);
 
-        var group = new GroupBox { Text = "فعال‌سازی امکانات پیشرفته — هر مورد با تیک فعال می‌شود", Dock = DockStyle.Top, Height = 420, Padding = new Padding(12), RightToLeft = RightToLeft.Yes };
+        var group = new GroupBox { Text = "فعال‌سازی امکانات پیشرفته — هر مورد با تیک فعال می‌شود", Dock = DockStyle.Top, Height = 330, Padding = new Padding(12), RightToLeft = RightToLeft.Yes };
         var features = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, AutoScroll = true }; features.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50)); features.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         int row = 0; foreach (var item in FeatureSettings.Catalog) { var check = new CheckBox { Text = item.Text, AutoSize = true, Tag = item.Key, Margin = new Padding(8) }; featureChecks[item.Key] = check; features.RowStyles.Add(new RowStyle(SizeType.AutoSize)); features.Controls.Add(check, row % 2, row / 2); row++; }
         group.Controls.Add(features); root.Controls.Add(group); root.Controls.SetChildIndex(group, 0);
