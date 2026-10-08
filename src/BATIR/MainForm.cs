@@ -1282,7 +1282,9 @@ VALUES(@date,'SalePayment',@amount,@description,'کاربر',@customer,@method,'
             using var s = new SaveFileDialog { Filter = "BATIR Database (*.db)|*.db", FileName = "BATIR-Backup.db" };
             if (s.ShowDialog() != DialogResult.OK) return;
             Database.BackupTo(s.FileName);
-            MessageBox.Show("پشتیبان‌گیری با موفقیت انجام شد.");
+            if (!Database.VerifyBackup(s.FileName))
+                throw new InvalidDataException("فایل پشتیبان ساخته شد اما آزمون سلامت SQLite آن موفق نبود.");
+            MessageBox.Show("پشتیبان‌گیری با موفقیت انجام شد و سلامت فایل نیز تأیید شد.");
         }
         catch (Exception ex) { MessageBox.Show("خطا در پشتیبان‌گیری: " + ex.Message); }
     }
