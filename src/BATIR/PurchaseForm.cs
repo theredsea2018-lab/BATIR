@@ -215,4 +215,15 @@ public class PurchaseForm : Form
             items.Clear(); supplier.Clear(); paid.Value=0; paymentMethod.SelectedIndex=0; UpdateTotal();
         }catch(Exception ex){MessageBox.Show("ثبت خرید انجام نشد و تغییرات ذخیره نشد.\n"+ex.Message);}
     }
+
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        if (keyData == (Keys.Control | Keys.S))
+        {
+            if (items.Rows.Count > 0)
+                SaveDraftPurchase();
+            return true;
+        }
+        return base.ProcessCmdKey(ref msg, keyData);
+    }
 }
