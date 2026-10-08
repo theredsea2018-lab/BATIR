@@ -77,13 +77,25 @@ public sealed class PrintCenterForm : Form
         Draw(e.Graphics,"کالا                         تعداد          فی             تخفیف             جمع",bold,b,ref y,24);
         long total=0;
         foreach(DataRow r in items!.Rows){long q=Convert.ToInt64(r["Quantity"]),u=Convert.ToInt64(r["UnitPrice"]),d=Convert.ToInt64(r["Discount"]),sum=q*u-d;total+=sum;Draw(e.Graphics,$"{r["Name"]}    {q:N0}    {u:N0}    {d:N0}    {sum:N0}",normal,b,ref y,23);if(y>b.Bottom-100)break;}
-        e.Graphics.DrawLine(pen,b.Left,y,b.Right,y);y+=8;Draw(e.Graphics,"جمع کل: "+total.ToString("N0")+" ریال",bold,b,ref y,27);Draw(e.Graphics,"پرداختی: "+Convert.ToInt64(h["Paid"]).ToString("N0")+" ریال",normal,b,ref y,23);Draw(e.Graphics,"توضیحات: "+Convert.ToString(h["Notes"]),normal,b,ref y,23);
+        e.Graphics.DrawLine(pen,b.Left,y,b.Right,y);y+=8;var unit = CurrencyName();Draw(e.Graphics,"جمع کل: "+total.ToString("N0")+" "+unit,bold,b,ref y,27);Draw(e.Graphics,"پرداختی: "+Convert.ToInt64(h["Paid"]).ToString("N0")+" "+unit,normal,b,ref y,23);Draw(e.Graphics,"توضیحات: "+Convert.ToString(h["Notes"]),normal,b,ref y,23);
     }
 
     void DrawBarcode(Graphics g,Rectangle b,Font bold,Font normal)
     {
         var p=header!.Rows[0];var code=Convert.ToString(p["Barcode"]);if(string.IsNullOrWhiteSpace(code))code=Convert.ToString(p["Code"]);var y=b.Top+8;Draw(g,Convert.ToString(p["Name"])??"",bold,b,ref y,28);
-        var r=new Rectangle(b.Left+10,y,b.Width-20,100);Code39(g,code??"",r);y+=110;Draw(g,code??"",normal,b,ref y,24);Draw(g,Convert.ToInt64(p["SalePrice"]).ToString("N0")+" ریال",bold,b,ref y,26);
+        var r=new Rectangle(b.Left+10,y,b.Width-20,100);Code39(g,code??"",r);y+=110;Draw(g,code??"",normal,b,ref y,24);Draw(g,Convert.ToInt64(p["SalePrice"]).ToString("N0")+" "+CurrencyName(),bold,b,ref y,26);
+    }
+
+    static string CurrencyName()
+    {
+        try
+        {
+            var dt=Database.Query("SELECT Value FROM Settings WHERE Key='CurrencyName' LIMIT 1");
+            if(dt.Rows.Count>0 && !string.IsNullOrWhiteSpace(Convert.ToString(dt.Rows[0]["Value"])))
+                return Convert.ToString(dt.Rows[0]["Value"])!;
+        }
+        catch { }
+        return "ریال";
     }
 
     static void Draw(Graphics g,string text,Font font,Rectangle b,ref int y,int h){using var br=new SolidBrush(Color.Black);var sf=new StringFormat{Alignment=StringAlignment.Far,LineAlignment=StringAlignment.Center,FormatFlags=StringFormatFlags.DirectionRightToLeft};g.DrawString(text,font,br,new Rectangle(b.Left,y,b.Width,h),sf);y+=h;}
