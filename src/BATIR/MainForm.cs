@@ -1318,7 +1318,7 @@ VALUES(@date,'SalePayment',@amount,@description,'کاربر',@customer,@method,'
             search.SelectAll();
             return true;
         }
-        if (keyData == Keys.Control | Keys.F)
+        if (keyData == (Keys.Control | Keys.F))
         {
             invoiceSearch.Focus();
             invoiceSearch.SelectAll();
