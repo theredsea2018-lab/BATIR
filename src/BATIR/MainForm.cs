@@ -49,6 +49,8 @@ public class MainForm : Form
         Width = 1250; Height = 760;
         StartPosition = FormStartPosition.CenterScreen;
         RightToLeft = RightToLeft.Yes; RightToLeftLayout = true;
+        KeyPreview = true;
+        KeyDown += MainForm_KeyDown;
         Build();
         LoadProducts();
         LoadDraftInvoice();
@@ -56,6 +58,33 @@ public class MainForm : Form
         HookActivityTracking();
         autoLockTimer.Tick += (_, _) => CheckAutoLock();
         autoLockTimer.Start();
+    }
+
+    void MainForm_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyCode == Keys.F9)
+        {
+            SaveInvoice();
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+            return;
+        }
+
+        if (e.Control && e.KeyCode == Keys.S)
+        {
+            SaveDraftInvoice();
+            status.Text = "پیش‌نویس فاکتور ذخیره شد";
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+            return;
+        }
+
+        if (e.KeyCode == Keys.Escape && invoiceItems.Rows.Count > 0)
+        {
+            ClearInvoice();
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+        }
     }
 
     void HookActivityTracking()
