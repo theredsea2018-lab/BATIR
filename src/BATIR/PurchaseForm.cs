@@ -39,7 +39,9 @@ public class PurchaseForm : Form
         var save = new Button { Text="ثبت فاکتور خرید", Dock=DockStyle.Fill };
         save.Click += (_,_) => SavePurchase();
         header.Controls.Add(save,3,2);
-        paid.ValueChanged += (_,_) => UpdateTotal();
+        paid.ValueChanged += (_,_) => { UpdateTotal(); SaveDraftPurchase(); };
+        supplier.TextChanged += (_,_) => { if (items.Rows.Count > 0) SaveDraftPurchase(); };
+        paymentMethod.SelectedIndexChanged += (_,_) => { if (items.Rows.Count > 0) SaveDraftPurchase(); };
 
         items.Columns.Add("ProductId",typeof(long));
         items.Columns.Add("کالا",typeof(string));
@@ -51,6 +53,8 @@ public class PurchaseForm : Form
         grid.AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.Fill; grid.DataSource=items;
         total.Dock=DockStyle.Bottom; total.Height=36; total.Font=new Font("Tahoma",12,FontStyle.Bold);
         Controls.Add(grid); Controls.Add(total); Controls.Add(header);
+        UpdateTotal();
+        LoadDraftPurchase();
         UpdateTotal();
     }
 
@@ -80,9 +84,74 @@ public class PurchaseForm : Form
         long newLineTotal = qnty * price;
         if (disc > newLineTotal) { MessageBox.Show("تخفیف نمی‌تواند بیشتر از مبلغ ردیف خرید باشد."); return; }
         foreach(DataRow r in items.Rows) if(Convert.ToInt64(r["ProductId"])==id)
-        { var newQty=Convert.ToInt64(r["تعداد"])+qnty; var newDisc=Convert.ToInt64(r["تخفیف"])+disc; var lineTotal=newQty*price; if(newDisc>lineTotal){MessageBox.Show("تخفیف تجمعی این کالا نمی‌تواند بیشتر از مبلغ ردیف خرید باشد.");return;} r["تعداد"]=newQty; r["فی"]=price; r["تخفیف"]=newDisc; r["جمع"]=lineTotal-newDisc; UpdateTotal(); return; }
+        { var newQty=Convert.ToInt64(r["تعداد"])+qnty; var newDisc=Convert.ToInt64(r["تخفیف"])+disc; var lineTotal=newQty*price; if(newDisc>lineTotal){MessageBox.Show("تخفیف تجمعی این کالا نمی‌تواند بیشتر از مبلغ ردیف خرید باشد.");return;} r["تعداد"]=newQty; r["فی"]=price; r["تخفیف"]=newDisc; r["جمع"]=lineTotal-newDisc; UpdateTotal(); SaveDraftPurchase(); return; }
         var row=items.NewRow(); row["ProductId"]=id;row["کالا"]=n;row["تعداد"]=qnty;row["فی"]=price;row["تخفیف"]=disc;row["جمع"]=qnty*price-disc;items.Rows.Add(row);
-        product.Clear();qty.Value=1;unitPrice.Value=0;discount.Value=0;UpdateTotal();
+        product.Clear();qty.Value=1;unitPrice.Value=0;discount.Value=0;UpdateTotal();SaveDraftPurchase();
+    }
+
+    void SaveDraftPurchase()
+    {
+        using var cn = Database.Open();
+        using var tx = cn.BeginTransaction();
+        using (var clear = cn.CreateCommand())
+        {
+            clear.Transaction = tx;
+            clear.CommandText = "DELETE FROM DraftPurchaseItems; DELETE FROM DraftPurchase;";
+            clear.ExecuteNonQuery();
+        }
+
+        if (items.Rows.Count > 0)
+        {
+            using var header = cn.CreateCommand();
+            header.Transaction = tx;
+            header.CommandText = "INSERT INTO DraftPurchase(Id,SupplierName,Paid,PaymentMethod,UpdatedAt) VALUES(1,@supplier,@paid,@method,@date)";
+            header.Parameters.AddWithValue("@supplier", supplier.Text.Trim());
+            header.Parameters.AddWithValue("@paid", (long)paid.Value);
+            header.Parameters.AddWithValue("@method", paymentMethod.SelectedItem?.ToString() ?? "نقدی");
+            header.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            header.ExecuteNonQuery();
+
+            foreach (DataRow row in items.Rows)
+            {
+                using var item = cn.CreateCommand();
+                item.Transaction = tx;
+                item.CommandText = "INSERT INTO DraftPurchaseItems(ProductId,ProductName,Quantity,UnitPrice,Discount) VALUES(@product,@name,@qty,@price,@discount)";
+                item.Parameters.AddWithValue("@product", Convert.ToInt64(row["ProductId"]));
+                item.Parameters.AddWithValue("@name", Convert.ToString(row["کالا"]) ?? "");
+                item.Parameters.AddWithValue("@qty", Convert.ToInt64(row["تعداد"]));
+                item.Parameters.AddWithValue("@price", Convert.ToInt64(row["فی"]));
+                item.Parameters.AddWithValue("@discount", Convert.ToInt64(row["تخفیف"]));
+                item.ExecuteNonQuery();
+            }
+        }
+        tx.Commit();
+    }
+
+    void LoadDraftPurchase()
+    {
+        var header = Database.Query("SELECT SupplierName,Paid,PaymentMethod FROM DraftPurchase WHERE Id=1");
+        var rows = Database.Query("SELECT ProductId,ProductName,Quantity,UnitPrice,Discount FROM DraftPurchaseItems ORDER BY Id");
+        if (rows.Rows.Count == 0) return;
+
+        supplier.Text = header.Rows.Count == 0 ? "" : Convert.ToString(header.Rows[0]["SupplierName"]) ?? "";
+        if (header.Rows.Count > 0)
+        {
+            paid.Value = Math.Max(0, Math.Min(paid.Maximum, Convert.ToDecimal(header.Rows[0]["Paid"])));
+            var method = Convert.ToString(header.Rows[0]["PaymentMethod"]) ?? "نقدی";
+            if (paymentMethod.Items.Contains(method)) paymentMethod.SelectedItem = method;
+        }
+
+        foreach (DataRow source in rows.Rows)
+        {
+            var row = items.NewRow();
+            row["ProductId"] = Convert.ToInt64(source["ProductId"]);
+            row["کالا"] = Convert.ToString(source["ProductName"]) ?? "";
+            row["تعداد"] = Convert.ToInt64(source["Quantity"]);
+            row["فی"] = Convert.ToInt64(source["UnitPrice"]);
+            row["تخفیف"] = Convert.ToInt64(source["Discount"]);
+            row["جمع"] = Convert.ToInt64(source["Quantity"]) * Convert.ToInt64(source["UnitPrice"]) - Convert.ToInt64(source["Discount"]);
+            items.Rows.Add(row);
+        }
     }
 
     long Total(){long x=0;foreach(DataRow r in items.Rows)x+=Convert.ToInt64(r["جمع"]);return x;}
@@ -139,7 +208,10 @@ public class PurchaseForm : Form
             }
             using var au=cn.CreateCommand();au.Transaction=tx;au.CommandText="INSERT INTO AuditLog(DateText,UserName,Action,Entity,EntityId,Details) VALUES(@d,'کاربر','ثبت فاکتور خرید','Invoice',@id,@x)";au.Parameters.AddWithValue("@d",DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));au.Parameters.AddWithValue("@id",iid);au.Parameters.AddWithValue("@x",no+" | مبلغ: "+t+" | مانده: "+outstanding);au.ExecuteNonQuery();
             NetworkLedgerSyncService.RecordInvoice(cn, tx, iid);
-            tx.Commit();MessageBox.Show("فاکتور خرید ثبت شد. شماره: "+no);items.Clear();supplier.Clear();paid.Value=0;paymentMethod.SelectedIndex=0;UpdateTotal();
+            tx.Commit();
+            Database.Execute("DELETE FROM DraftPurchaseItems; DELETE FROM DraftPurchase;");
+            MessageBox.Show("فاکتور خرید ثبت شد. شماره: "+no);
+            items.Clear(); supplier.Clear(); paid.Value=0; paymentMethod.SelectedIndex=0; UpdateTotal();
         }catch(Exception ex){MessageBox.Show("ثبت خرید انجام نشد و تغییرات ذخیره نشد.\n"+ex.Message);}
     }
 }
