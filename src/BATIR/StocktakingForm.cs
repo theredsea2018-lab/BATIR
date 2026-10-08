@@ -73,7 +73,7 @@ public class StocktakingForm : Form
         if (e.RowIndex < 0 || grid.Columns["موجودی شمارش"] == null ||
             e.ColumnIndex != grid.Columns["موجودی شمارش"].Index) return;
         var row = grid.Rows[e.RowIndex];
-        if (!long.TryParse(Convert.ToString(row.Cells["موجودی شمارش"].Value), out var counted))
+        if (!long.TryParse(Convert.ToString(row.Cells["موجودی شمارش"].Value), out var counted) || counted < 0)
             counted = 0;
         var current = Convert.ToInt64(row.Cells["موجودی سیستم"].Value);
         row.Cells["اختلاف"].Value = counted - current;
@@ -87,6 +87,7 @@ public class StocktakingForm : Form
         {
             var current = Convert.ToInt64(row["موجودی سیستم"]);
             var counted = Convert.ToInt64(row["موجودی شمارش"]);
+            if (counted < 0) throw new InvalidOperationException("موجودی شمارش‌شده نمی‌تواند منفی باشد: " + Convert.ToString(row["کالا"]));
             var diff = counted - current;
             if (diff != 0) changes.Add((Convert.ToInt64(row["Id"]), current, counted, diff));
         }
