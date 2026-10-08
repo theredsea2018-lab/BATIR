@@ -197,6 +197,8 @@ CREATE INDEX IF NOT EXISTS IX_Suppliers_Phone ON Suppliers(Phone);";
     public static void BackupTo(string destination)
     {
         if (string.IsNullOrWhiteSpace(destination)) throw new ArgumentException("مسیر پشتیبان‌گیری خالی است.");
+        if (string.Equals(Path.GetFullPath(destination), Path.GetFullPath(FilePath), StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("مسیر پشتیبان نمی‌تواند با فایل دیتابیس اصلی یکسان باشد.");
         Directory.CreateDirectory(Path.GetDirectoryName(destination) ?? Folder);
         using var source = Open();
         using var target = new SqliteConnection($"Data Source={destination};");
