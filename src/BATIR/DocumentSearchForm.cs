@@ -18,11 +18,22 @@ public class DocumentSearchForm : Form
         StartPosition = FormStartPosition.CenterParent;
         RightToLeft = RightToLeft.Yes; RightToLeftLayout = true;
         Build();
+        number.KeyDown += (_, e) => { if (e.KeyCode == Keys.Enter) { Search(); e.SuppressKeyPress = true; } };
         Search();
     }
 
     void Build()
     {
+        KeyPreview = true;
+        KeyDown += (_, e) =>
+        {
+            if (e.Control && e.KeyCode == Keys.F)
+            {
+                number.Focus();
+                number.SelectAll();
+                e.SuppressKeyPress = true;
+            }
+        };
         var top = new TableLayoutPanel { Dock = DockStyle.Top, Height = 105, ColumnCount = 5, RowCount = 2, Padding = new Padding(8) };
         for (int i = 0; i < 5; i++) top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20));
         AddText(top, "شماره سند / فاکتور", number, 0, 0);
