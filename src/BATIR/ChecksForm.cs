@@ -19,7 +19,7 @@ public class ChecksForm : Form
     public ChecksForm()
     {
         Text = "BATIR | مدیریت چک‌ها";
-        Width = 1050; Height = 650;
+        Width = 1080; Height = 650;
         RightToLeft = RightToLeft.Yes; RightToLeftLayout = true;
         Build();
         LoadChecks();
@@ -27,7 +27,7 @@ public class ChecksForm : Form
 
     void Build()
     {
-        var form = new TableLayoutPanel { Dock = DockStyle.Top, Height = 160, ColumnCount = 4, RowCount = 3, Padding = new Padding(8) };
+        var form = new TableLayoutPanel { Dock = DockStyle.Top, Height = 135, ColumnCount = 4, RowCount = 3, Padding = new Padding(8) };
         for (int i=0;i<4;i++) form.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,25));
         AddText(form,"شماره چک",no,0,0); AddText(form,"بانک",bank,1,0);
         AddNum(form,"مبلغ",amount,2,0); AddText(form,"سررسید",due,3,0);
