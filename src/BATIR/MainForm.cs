@@ -672,7 +672,7 @@ CreditLimit=@limit,Notes=@notes,PriceTier=@tier WHERE Id=@id",
                 new SqliteParameter("@address", customerAddress.Text.Trim()),
                 new SqliteParameter("@limit", (long)customerCreditLimit.Value),
                 new SqliteParameter("@notes", customerNotes.Text.Trim()),
-                new SqliteParameter("@tier", customerPriceTier.SelectedItem?.ToString() ?? "Normal"),
+                new SqliteParameter("@tier", GetCustomerPriceTierValue()),
                 new SqliteParameter("@id", editingCustomerId));
             status.Text = "اطلاعات مشتری ویرایش شد";
         }
@@ -753,7 +753,7 @@ VALUES(@date,'کاربر','دریافت از مشتری','Customer',@id,@details
     TabPage BuildChecksPage()
     {
         var p = new TabPage("چک‌ها");
-        var b = new Button { Text = "باز کردن مدیریت چک‌ها", Dock = DockStyle.Top, Height = 70 };
+        var b = new Button { Text = "باز کردن مدیریت چک‌ها", Dock = DockStyle.Top, Height = 44 };
         b.Click += (_, _) => new ChecksForm().ShowDialog(this);
         p.Controls.Add(b);
         return p;
