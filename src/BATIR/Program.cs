@@ -34,6 +34,7 @@ namespace BATIR
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            Application.Idle += (_, _) => AppearanceService.ApplyOpenForms();
             var mainForm = new MainForm();
             AppearanceService.Apply(mainForm);
             Application.Run(mainForm);
