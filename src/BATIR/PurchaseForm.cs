@@ -39,7 +39,7 @@ public class PurchaseForm : Form
         var save = new Button { Text="ثبت فاکتور خرید", Dock=DockStyle.Fill };
         save.Click += (_,_) => SavePurchase();
         header.Controls.Add(save,3,2);
-        paid.ValueChanged += (_,_) => { UpdateTotal(); SaveDraftPurchase(); };
+        paid.ValueChanged += (_,_) => { UpdateTotal(); if (items.Rows.Count > 0) SaveDraftPurchase(); };
         supplier.TextChanged += (_,_) => { if (items.Rows.Count > 0) SaveDraftPurchase(); };
         paymentMethod.SelectedIndexChanged += (_,_) => { if (items.Rows.Count > 0) SaveDraftPurchase(); };
 
@@ -56,6 +56,7 @@ public class PurchaseForm : Form
         UpdateTotal();
         LoadDraftPurchase();
         UpdateTotal();
+        FormClosing += (_, _) => { if (items.Rows.Count > 0) SaveDraftPurchase(); };
     }
 
     void AddText(TableLayoutPanel t,string label,TextBox box,int c,int r)
