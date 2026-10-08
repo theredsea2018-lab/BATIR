@@ -19,7 +19,15 @@ public class NetworkSyncForm : Form
         backupPath.Dock = DockStyle.Fill; root.Controls.Add(backupPath, 1, 1);
         var choose = new Button { Text = "انتخاب پشتیبان", Dock = DockStyle.Fill }; choose.Click += ChooseBackup; root.Controls.Add(choose, 1, 2);
         var send = new Button { Text = "ارسال پشتیبان به کامپیوتر دیگر", Dock = DockStyle.Fill, Height = 44 }; send.Click += Send; root.Controls.Add(send, 1, 3);
-        var receive = new Button { Text = "آماده دریافت از شبکه", Dock = DockStyle.Fill, Height = 44 }; receive.Click += Receive; root.Controls.Add(receive, 0, 3);
+        var receive = new Button { Text = "دریافت پشتیبان از شبکه", Dock = DockStyle.Fill, Height = 44 }; receive.Click += Receive; root.Controls.Add(receive, 0, 3);
+        var sendLedger = new Button { Text = "ارسال فاکتورهای ثبت‌نشده", Dock = DockStyle.Fill, Height = 44 }; sendLedger.Click += SendLedger; root.Controls.Add(sendLedger, 0, 5);
+        var receiveLedger = new Button { Text = "دریافت فاکتورهای شبکه", Dock = DockStyle.Fill, Height = 44 }; receiveLedger.Click += ReceiveLedger; root.Controls.Add(receiveLedger, 1, 5);
+        var ledgerInfo = new Label
+        {
+            Text = "همگام‌سازی فاکتورها فقط روی شبکه داخلی انجام می‌شود و به اینترنت نیاز ندارد.",
+            Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoEllipsis = true
+        };
+        root.Controls.Add(ledgerInfo, 0, 6); root.SetColumnSpan(ledgerInfo, 2);
         status.Text = "پورت شبکه داخلی: " + NetworkSyncService.Port; status.Dock = DockStyle.Fill; status.TextAlign = ContentAlignment.MiddleCenter; root.Controls.Add(status, 0, 4); root.SetColumnSpan(status, 2);
         Controls.Add(root);
         FormClosed += (_, _) => receiverCts?.Cancel();
