@@ -18,9 +18,9 @@ public class PurchaseForm : Form
 
     public PurchaseForm()
     {
-        Text = "BATIR | فاکتور خرید"; Width = 1100; Height = 700;
+        Text = "BATIR | فاکتور خرید"; Width = 1120; Height = 700;
         RightToLeft = RightToLeft.Yes; RightToLeftLayout = true;
-        var header = new TableLayoutPanel { Dock = DockStyle.Top, Height = 190, ColumnCount = 4, RowCount = 3, Padding = new Padding(8) };
+        var header = new TableLayoutPanel { Dock = DockStyle.Top, Height = 155, ColumnCount = 4, RowCount = 3, Padding = new Padding(8) };
         for (int i=0;i<4;i++) header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,25));
         AddText(header,"تأمین‌کننده",supplier,0,0);
         AddText(header,"کالا / بارکد",product,1,0);
@@ -49,7 +49,7 @@ public class PurchaseForm : Form
         items.Columns.Add("جمع",typeof(long));
         grid.Dock=DockStyle.Fill; grid.ReadOnly=true; grid.AllowUserToAddRows=false;
         grid.AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.Fill; grid.DataSource=items;
-        total.Dock=DockStyle.Bottom; total.Height=42; total.Font=new Font("Tahoma",12,FontStyle.Bold);
+        total.Dock=DockStyle.Bottom; total.Height=36; total.Font=new Font("Tahoma",12,FontStyle.Bold);
         Controls.Add(grid); Controls.Add(total); Controls.Add(header);
         UpdateTotal();
     }
