@@ -89,6 +89,7 @@ public class DocumentSearchForm : Form
 
     void Search()
     {
+        if (from.Value.Date > to.Value.Date) { MessageBox.Show("تاریخ شروع نمی‌تواند بعد از تاریخ پایان باشد."); return; }
         var start = from.Value.Date.ToString("yyyy-MM-dd 00:00:00");
         var end = to.Value.Date.AddDays(1).ToString("yyyy-MM-dd 00:00:00");
         var startDate = from.Value.Date.ToString("yyyy-MM-dd");
