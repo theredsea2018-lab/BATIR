@@ -163,7 +163,11 @@ VALUES(@key,@value,@date);";
         indexes.CommandText = @"
 CREATE INDEX IF NOT EXISTS IX_CashTransactions_Type ON CashTransactions(Type);
 CREATE INDEX IF NOT EXISTS IX_CashTransactions_CustomerId ON CashTransactions(CustomerId);
-CREATE INDEX IF NOT EXISTS IX_CashTransactions_SupplierId ON CashTransactions(SupplierId);";
+CREATE INDEX IF NOT EXISTS IX_CashTransactions_SupplierId ON CashTransactions(SupplierId);
+CREATE INDEX IF NOT EXISTS IX_Customers_Name ON Customers(Name);
+CREATE INDEX IF NOT EXISTS IX_Customers_Phone ON Customers(Phone);
+CREATE INDEX IF NOT EXISTS IX_Suppliers_Name ON Suppliers(Name);
+CREATE INDEX IF NOT EXISTS IX_Suppliers_Phone ON Suppliers(Phone);";
         indexes.ExecuteNonQuery();
 
         // Apply repeatable integrity/performance hardening after legacy migrations.
