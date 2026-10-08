@@ -27,6 +27,7 @@ public class PurchaseReturnsForm : Form
         top.Controls.Add(refundMethod);
         ret.Dock = DockStyle.Bottom; ret.Height = 55; ret.Enabled = false;
         ret.Click += (_, _) => ReturnInvoice();
+        invoiceNo.KeyDown += (_, e) => { if (e.KeyCode == Keys.Enter) { LoadInvoice(); e.SuppressKeyPress = true; } };
         grid.Dock = DockStyle.Fill; grid.AllowUserToAddRows = false;
         grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         Controls.Add(grid); Controls.Add(ret); Controls.Add(top);
@@ -75,6 +76,7 @@ ORDER BY i.Id", new SqliteParameter("@no", q));
 
         try
         {
+            if (MessageBox.Show("برگشت انتخاب‌شده ثبت شود؟ موجودی و حساب تأمین‌کننده اصلاح خواهد شد.", "تأیید برگشت خرید", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
             using var cn = Database.Open();
             using var tx = cn.BeginTransaction();
 
