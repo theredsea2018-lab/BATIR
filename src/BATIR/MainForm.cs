@@ -409,7 +409,7 @@ public class MainForm : Form
 
         status.Dock = DockStyle.Fill;
         status.Height = 30;
-        status.Text = "آماده | ریال";
+        status.Text = "آماده | " + CurrencyName();
         status.TextAlign = ContentAlignment.MiddleRight;
         status.Font = new Font("Tahoma", 8.5f, FontStyle.Regular);
         footer.Controls.Add(status);
@@ -517,7 +517,7 @@ public class MainForm : Form
 
         invoiceTotal.Dock = DockStyle.Bottom; invoiceTotal.Height = 42;
         invoiceTotal.Font = new Font("Tahoma", 12, FontStyle.Bold);
-        invoiceTotal.Text = "جمع فاکتور: ۰ ریال";
+        invoiceTotal.Text = "جمع فاکتور: ۰ " + CurrencyName();
         invoiceTotal.TextAlign = ContentAlignment.MiddleLeft;
 
         invoiceItems.Columns.Add("ProductId", typeof(long));
@@ -790,13 +790,27 @@ VALUES(@date,'کاربر','دریافت از مشتری','Customer',@id,@details
         if (!string.IsNullOrWhiteSpace(q)) sql += " AND (Name LIKE @q OR Barcode LIKE @q OR Brand LIKE @q OR Category LIKE @q)";
         sql += " ORDER BY Id DESC";
         var dt = string.IsNullOrWhiteSpace(q) ? Database.Query(sql) : Database.Query(sql, new SqliteParameter("@q", "%" + q + "%"));
-        grid.DataSource = dt; status.Text = "تعداد کالا: " + dt.Rows.Count.ToString("N0") + " | ریال";
+        grid.DataSource = dt; status.Text = "تعداد کالا: " + dt.Rows.Count.ToString("N0") + " | " + CurrencyName();
     }
 
     void AddProduct(object? sender, EventArgs e)
     {
         if (!PermissionService.Require("Products.Edit", this)) return;
         if (string.IsNullOrWhiteSpace(name.Text)) { MessageBox.Show("نام کالا را وارد کنید."); return; }
+
+        var newBarcode = barcode.Text.Trim();
+        if (!string.IsNullOrWhiteSpace(newBarcode))
+        {
+            var duplicate = Database.Query("SELECT Id,Name FROM Products WHERE Active=1 AND Barcode=@barcode LIMIT 1",
+                new SqliteParameter("@barcode", newBarcode));
+            if (duplicate.Rows.Count > 0)
+            {
+                var oldName = Convert.ToString(duplicate.Rows[0]["Name"]) ?? "";
+                MessageBox.Show("این بارکد قبلاً برای کالا «" + oldName + "» ثبت شده است. بارکد تکراری ثبت نشد.",
+                    "بارکد تکراری", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+        }
         if (sale.Value > 0 && sale.Value < purchase.Value &&
             MessageBox.Show("قیمت فروش کمتر از قیمت خرید است. ثبت شود؟", "هشدار", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
 
@@ -812,6 +826,18 @@ VALUES(@code,@barcode,@name,@brand,@category,@purchase,@sale,@stock,@date,@unit,
             new SqliteParameter("@factor", (long)unitFactor.Value));
         name.Clear(); barcode.Clear(); brand.Clear(); category.Clear(); unitName.Clear(); secondaryUnitName.Clear(); unitFactor.Value = 1; purchase.Value = 0; sale.Value = 0; stock.Value = 0;
         LoadProducts();
+    }
+
+    static string CurrencyName()
+    {
+        try
+        {
+            var dt = Database.Query("SELECT Value FROM Settings WHERE Key='CurrencyName' LIMIT 1");
+            if (dt.Rows.Count > 0 && !string.IsNullOrWhiteSpace(Convert.ToString(dt.Rows[0]["Value"])))
+                return Convert.ToString(dt.Rows[0]["Value"])!;
+        }
+        catch { }
+        return "ریال";
     }
 
     static decimal GetMinimumSaleMarginPercent()
@@ -941,7 +967,7 @@ FROM DraftInvoiceItems ORDER BY Id");
             }
             UpdateInvoiceTotal();
             if (invoiceItems.Rows.Count > 0)
-                status.Text = "پیش‌نویس فاکتور از آخرین جلسه بازیابی شد | ریال";
+                status.Text = "پیش‌نویس فاکتور از آخرین جلسه بازیابی شد | " + CurrencyName();
         }
         catch
         {
@@ -999,7 +1025,9 @@ VALUES(@product,@name,@qty,@price,@discount)";
     {
         long paid = Math.Min((long)invoicePaid.Value, InvoiceTotal());
         long remaining = InvoiceTotal() - paid;
-        invoiceTotal.Text = "جمع: " + InvoiceTotal().ToString("N0") + " ریال | پرداختی: " + paid.ToString("N0") + " | مانده: " + remaining.ToString("N0") + " ریال";
+        var unit = CurrencyName();
+        invoiceTotal.Text = "جمع: " + InvoiceTotal().ToString("N0") + " " + unit +
+            " | پرداختی: " + paid.ToString("N0") + " | مانده: " + remaining.ToString("N0") + " " + unit;
     }
 
     void SaveInvoice()
@@ -1264,6 +1292,36 @@ VALUES(@date,'SalePayment',@amount,@description,'کاربر',@customer,@method,'
         if (keyData == Keys.F9)
         {
             SaveInvoice();
+            return true;
+        }
+        if (keyData == Keys.F4)
+        {
+            invoiceSearch.Focus();
+            invoiceSearch.SelectAll();
+            return true;
+        }
+        if (keyData == Keys.F5)
+        {
+            using var purchaseForm = new PurchaseForm();
+            purchaseForm.ShowDialog(this);
+            return true;
+        }
+        if (keyData == Keys.F6)
+        {
+            customerSearch.Focus();
+            customerSearch.SelectAll();
+            return true;
+        }
+        if (keyData == Keys.F7)
+        {
+            search.Focus();
+            search.SelectAll();
+            return true;
+        }
+        if (keyData == Keys.Control | Keys.F)
+        {
+            invoiceSearch.Focus();
+            invoiceSearch.SelectAll();
             return true;
         }
         return base.ProcessCmdKey(ref msg, keyData);
