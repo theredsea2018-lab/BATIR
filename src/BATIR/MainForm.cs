@@ -52,6 +52,7 @@ public class MainForm : Form
         Build();
         LoadProducts();
         LoadDraftInvoice();
+        FormClosing += (_, _) => { if (invoiceItems.Rows.Count > 0) SaveDraftInvoice(); };
         HookActivityTracking();
         autoLockTimer.Tick += (_, _) => CheckAutoLock();
         autoLockTimer.Start();
