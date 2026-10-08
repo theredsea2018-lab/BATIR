@@ -12,10 +12,10 @@ internal static class Database
     public static SqliteConnection Open()
     {
         Directory.CreateDirectory(Folder);
-        var cn = new SqliteConnection($"Data Source={FilePath};Cache=Shared");
+        var cn = new SqliteConnection($"Data Source={FilePath};Cache=Shared;Default Timeout=10;Pooling=True");
         cn.Open();
         using var cmd = cn.CreateCommand();
-        cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL;";
+        cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL; PRAGMA busy_timeout=10000;";
         cmd.ExecuteNonQuery();
         Initialize(cn);
         return cn;
