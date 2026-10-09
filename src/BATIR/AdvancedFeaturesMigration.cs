@@ -83,6 +83,9 @@ CREATE TABLE IF NOT EXISTS PriceChangeHistory(
 CREATE INDEX IF NOT EXISTS IX_PriceChangeHistory_Batch ON PriceChangeHistory(BatchId,ProductId);
 ";
         cmd.ExecuteNonQuery();
+        // Preserve payment state for existing saved sales drafts as well as fresh databases.
+        Database.AddColumnIfMissing(cn, "DraftInvoice", "Paid", "INTEGER NOT NULL DEFAULT 0");
+        Database.AddColumnIfMissing(cn, "DraftInvoice", "PaymentMethod", "TEXT NOT NULL DEFAULT 'نقدی'");
         Database.AddColumnIfMissing(cn, "Customers", "PriceTier", "TEXT NOT NULL DEFAULT 'Normal'");
         Database.AddColumnIfMissing(cn, "Products", "TargetMarginPercent", "REAL NOT NULL DEFAULT 0");
         using var priceTier = cn.CreateCommand();
