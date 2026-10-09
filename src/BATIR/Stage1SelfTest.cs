@@ -87,7 +87,14 @@ VALUES(@product,'Stage 1 draft persistence probe',2,150,10);", new SqliteParamet
             cmd.ExecuteNonQuery();
         }
         Require(!Database.VerifyBackup(foreignPath), "reject valid SQLite file without BATIR core tables");
-        Console.WriteLine("Stage 1 backup validation: passed (rejects valid SQLite files that are not BATIR backups).");
+        var rejectedRestore = false;
+        try { Database.RestoreFrom(foreignPath); }
+        catch (InvalidDataException) { rejectedRestore = true; }
+        Require(rejectedRestore, "reject restoring a valid SQLite file without BATIR core tables");
+        var probe = Database.Query("SELECT Value FROM Settings WHERE Key='Stage1BackupRestoreProbe';");
+        Require(probe.Rows.Count == 1 && Convert.ToString(probe.Rows[0]["Value"]) == "before",
+            "failed restore leaves current database unchanged");
+        Console.WriteLine("Stage 1 backup validation: passed (rejects non-BATIR files and preserves current data on rejected restore).");
     }
 
     private static void TestLegacySchemaMigration()
