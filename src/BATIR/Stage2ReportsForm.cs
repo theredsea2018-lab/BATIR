@@ -188,6 +188,7 @@ PurchasePrice AS [خرید],SalePrice AS [فروش] FROM Products WHERE Active=1
 
     void ApplyBulkPrice()
     {
+        if (!PermissionService.Require("Products.Edit", this)) return;
         var pct = (decimal)pricePercent.Value;
         if (pct == 0) { MessageBox.Show("درصد تغییر نمی‌تواند صفر باشد."); return; }
         var f = productFilter.Text.Trim();
@@ -200,6 +201,28 @@ PurchasePrice AS [خرید],SalePrice AS [فروش] FROM Products WHERE Active=1
             if (!string.IsNullOrWhiteSpace(f)) { where += " AND (Name LIKE @q OR Barcode LIKE @q OR Brand LIKE @q OR Category LIKE @q)"; cmd.Parameters.AddWithValue("@q","%"+f+"%"); }
             var factor = 1m + pct/100m;
             var mode = priceMode.SelectedItem?.ToString() ?? "قیمت فروش";
+            using (var count = cn.CreateCommand())
+            {
+                count.Transaction = tx;
+                count.CommandText = $"SELECT COUNT(*) FROM Products WHERE {where}";
+                foreach (SqliteParameter parameter in cmd.Parameters)
+                    count.Parameters.AddWithValue(parameter.ParameterName, parameter.Value);
+                var matches = Convert.ToInt64(count.ExecuteScalar());
+                if (matches == 0)
+                {
+                    tx.Rollback();
+                    MessageBox.Show("کالایی با این فیلتر پیدا نشد.");
+                    return;
+                }
+                var preview = MessageBox.Show(
+                    $"تغییر قیمت برای {matches:N0} کالا اعمال شود؟\\nنوع قیمت: {mode}\\nدرصد تغییر: {pct:N2}%\\nفیلتر: {(string.IsNullOrWhiteSpace(f) ? "همه کالاهای فعال" : f)}\\nاین عملیات در تاریخچه ثبت می‌شود و امکان برگشت دارد.",
+                    "تأیید تغییر گروهی قیمت", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
+                if (preview != DialogResult.Yes)
+                {
+                    tx.Rollback();
+                    return;
+                }
+            }
             var batchId = Guid.NewGuid().ToString("N");
             using (var snapshot = cn.CreateCommand())
             {
