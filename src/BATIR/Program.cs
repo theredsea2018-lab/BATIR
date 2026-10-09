@@ -17,6 +17,12 @@ namespace BATIR
                 Directory.CreateDirectory(testRoot);
                 Environment.SetEnvironmentVariable("BATIR_DATABASE_PATH", Path.Combine(testRoot, "batir.db"));
             }
+            if (args.Any(a => string.Equals(a, "--self-test-stage2", StringComparison.OrdinalIgnoreCase)))
+            {
+                Environment.ExitCode = Stage2SelfTest.Run();
+                return;
+            }
+
             if (args.Any(a => string.Equals(a, "--self-test-stage1", StringComparison.OrdinalIgnoreCase)))
             {
                 Environment.ExitCode = Stage1SelfTest.Run();
