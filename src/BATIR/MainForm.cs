@@ -76,8 +76,8 @@ public class MainForm : Form
 
         if (e.Control && e.KeyCode == Keys.S)
         {
-            SaveDraftInvoice();
-            status.Text = "پیش‌نویس فاکتور ذخیره شد";
+            if (SaveDraftInvoice())
+                status.Text = "پیش‌نویس فاکتور ذخیره شد";
             e.Handled = true;
             e.SuppressKeyPress = true;
             return;
@@ -1013,7 +1013,7 @@ FROM DraftInvoiceItems ORDER BY Id");
         }
     }
 
-    void SaveDraftInvoice()
+    bool SaveDraftInvoice()
     {
         try
         {
@@ -1054,11 +1054,13 @@ FROM DraftInvoiceItems ORDER BY Id");
                 }
             }
             tx.Commit();
+            return true;
         }
         catch (Exception ex)
         {
             // A failed autosave must not crash the sales window; show a clear warning instead.
             status.Text = "هشدار: ذخیره خودکار پیش‌نویس ناموفق بود؛ اطلاعات ممکن است ذخیره نشده باشد. " + ex.Message;
+            return false;
         }
     }
 
@@ -1341,8 +1343,8 @@ VALUES(@date,'SalePayment',@amount,@description,'کاربر',@customer,@method,'
     {
         if (keyData == (Keys.Control | Keys.S))
         {
-            SaveDraftInvoice();
-            status.Text = "پیش‌نویس فاکتور ذخیره شد | " + CurrencyName();
+            if (SaveDraftInvoice())
+                status.Text = "پیش‌نویس فاکتور ذخیره شد | " + CurrencyName();
             return true;
         }
         if (keyData == Keys.F9)
