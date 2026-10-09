@@ -247,6 +247,8 @@ WHERE type='table' AND name IN ('Products','Settings','Invoices','InvoiceItems')
             checkpointCommand.ExecuteNonQuery();
         }
         BackupTo(safetyPath);
+        if (!VerifyBackup(safetyPath))
+            throw new InvalidDataException("نسخه ایمن قبل از بازیابی قابل تأیید نیست؛ بازیابی متوقف شد.");
 
         var tempPath = FilePath + ".restore-" + Guid.NewGuid().ToString("N") + ".db";
         try
