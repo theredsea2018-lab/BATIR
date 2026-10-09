@@ -30,6 +30,7 @@ public class MainForm : Form
     readonly ComboBox paymentMethod = new();
     readonly Label status = new();
     readonly System.Windows.Forms.Timer autoLockTimer = new() { Interval = 1000 };
+    readonly System.Windows.Forms.Timer autoBackupTimer = new() { Interval = 60_000 };
     DateTime lastActivity = DateTime.Now;
     bool lockDialogOpen = false;
     readonly DataTable invoiceItems = new();
@@ -58,6 +59,9 @@ public class MainForm : Form
         HookActivityTracking();
         autoLockTimer.Tick += (_, _) => CheckAutoLock();
         autoLockTimer.Start();
+        // Re-check backup scheduling while BATIR stays open; startup also covers time while closed.
+        autoBackupTimer.Tick += (_, _) => BackupService.RunAutomaticIfDue();
+        autoBackupTimer.Start();
     }
 
     void MainForm_KeyDown(object? sender, KeyEventArgs e)
