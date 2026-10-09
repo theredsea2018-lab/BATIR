@@ -402,36 +402,40 @@ public class MainForm : Form
             menu.Controls.Add(b);
         }
 
+        // Main navigation follows Novin 5's "Novini form" grouping while retaining BATIR's added modules.
         Section("اسناد");
         NavButton("ثبت فروش", () => SelectPage(invoices), true);
-        NavButton("خرید", () => SelectPage(purchasePage));
+        NavButton("فاکتور خرید", () => SelectPage(purchasePage));
         NavButton("برگشت از فروش", () => SelectPage(returnsPage));
         NavButton("برگشت از خرید", () => SelectPage(purchaseReturnsPage));
         NavButton("دریافت / پرداخت", () => SelectPage(financePage));
 
-        Section("حساب‌ها");
-        NavButton("مشتریان و اشخاص", () => SelectPage(customers));
-        NavButton("تأمین‌کنندگان", () => SelectPage(suppliersPage));
+        Section("مشاهده حساب‌ها");
         NavButton("دفتر حساب مشتریان", () => SelectPage(statementPage));
         NavButton("دفتر حساب تأمین‌کنندگان", () => SelectPage(supplierStatementPage));
-        NavButton("چک‌ها", () => SelectPage(checks));
+        NavButton("چک‌ها و تعهدات", () => SelectPage(checks));
+        NavButton("بدهکاران / بستانکاران", () => SelectPage(debtorsPage));
 
-        Section("کالا و انبار");
+        Section("جدول حساب‌ها");
         NavButton("کالاها و موجودی", () => SelectPage(products));
+        NavButton("مشتریان و اشخاص", () => SelectPage(customers));
+        NavButton("تأمین‌کنندگان", () => SelectPage(suppliersPage));
         NavButton("انبارگردانی", () => SelectPage(stocktakingPage));
         NavButton("اصلاح / انتقال موجودی", () => SelectPage(inventoryOpsPage));
 
         Section("گزارش‌ها");
         NavButton("گزارش موجودی و سود", () => SelectPage(reportPage));
-        NavButton("بدهکاران / بستانکاران", () => SelectPage(debtorsPage));
         NavButton("کنترل و گزارش‌های تکمیلی", () => SelectPage(stage2Page));
         NavButton("جستجوی اسناد", () => SelectPage(documentSearchPage));
 
-        Section("سیستم");
+        Section("متفرقه");
         NavButton("تنظیمات", () => SelectPage(settingsPage));
         NavButton("امکانات پیشرفته", () => SelectPage(advancedPage));
+        NavButton("پشتیبان‌گیری", Backup);
+        NavButton("بازیابی پشتیبان", RestoreBackup);
         if (remindersPage != null)
             NavButton("یادآوری سررسیدها", () => SelectPage(remindersPage));
+        NavButton("خروج", Close);
 
         var footer = new Panel
         {
