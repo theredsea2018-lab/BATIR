@@ -1015,43 +1015,52 @@ FROM DraftInvoiceItems ORDER BY Id");
 
     void SaveDraftInvoice()
     {
-        using var cn = Database.Open();
-        using var tx = cn.BeginTransaction();
-        using (var clear = cn.CreateCommand())
+        try
         {
-            clear.Transaction = tx;
-            clear.CommandText = "DELETE FROM DraftInvoiceItems; DELETE FROM DraftInvoice;";
-            clear.ExecuteNonQuery();
-        }
-
-        if (invoiceItems.Rows.Count > 0)
-        {
-            using var header = cn.CreateCommand();
-            header.Transaction = tx;
-            header.CommandText = @"INSERT INTO DraftInvoice(Id,CustomerName,Notes,Paid,PaymentMethod,UpdatedAt)
-VALUES(1,@customer,@notes,@paid,@method,@date)";
-            header.Parameters.AddWithValue("@customer", customerName.Text.Trim());
-            header.Parameters.AddWithValue("@notes", invoiceNote.Text.Trim());
-            header.Parameters.AddWithValue("@paid", (long)invoicePaid.Value);
-            header.Parameters.AddWithValue("@method", paymentMethod.SelectedItem?.ToString() ?? "نقدی");
-            header.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-            header.ExecuteNonQuery();
-
-            foreach (DataRow row in invoiceItems.Rows)
+            using var cn = Database.Open();
+            using var tx = cn.BeginTransaction();
+            using (var clear = cn.CreateCommand())
             {
-                using var item = cn.CreateCommand();
-                item.Transaction = tx;
-                item.CommandText = @"INSERT INTO DraftInvoiceItems(ProductId,ProductName,Quantity,UnitPrice,Discount)
-VALUES(@product,@name,@qty,@price,@discount)";
-                item.Parameters.AddWithValue("@product", Convert.ToInt64(row["ProductId"]));
-                item.Parameters.AddWithValue("@name", Convert.ToString(row["نام کالا"]) ?? "");
-                item.Parameters.AddWithValue("@qty", Convert.ToInt64(row["تعداد"]));
-                item.Parameters.AddWithValue("@price", Convert.ToInt64(row["فی"]));
-                item.Parameters.AddWithValue("@discount", Convert.ToInt64(row["تخفیف"]));
-                item.ExecuteNonQuery();
+                clear.Transaction = tx;
+                clear.CommandText = "DELETE FROM DraftInvoiceItems; DELETE FROM DraftInvoice;";
+                clear.ExecuteNonQuery();
             }
+    
+            if (invoiceItems.Rows.Count > 0)
+            {
+                using var header = cn.CreateCommand();
+                header.Transaction = tx;
+                header.CommandText = @"INSERT INTO DraftInvoice(Id,CustomerName,Notes,Paid,PaymentMethod,UpdatedAt)
+    VALUES(1,@customer,@notes,@paid,@method,@date)";
+                header.Parameters.AddWithValue("@customer", customerName.Text.Trim());
+                header.Parameters.AddWithValue("@notes", invoiceNote.Text.Trim());
+                header.Parameters.AddWithValue("@paid", (long)invoicePaid.Value);
+                header.Parameters.AddWithValue("@method", paymentMethod.SelectedItem?.ToString() ?? "نقدی");
+                header.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                header.ExecuteNonQuery();
+    
+                foreach (DataRow row in invoiceItems.Rows)
+                {
+                    using var item = cn.CreateCommand();
+                    item.Transaction = tx;
+                    item.CommandText = @"INSERT INTO DraftInvoiceItems(ProductId,ProductName,Quantity,UnitPrice,Discount)
+    VALUES(@product,@name,@qty,@price,@discount)";
+                    item.Parameters.AddWithValue("@product", Convert.ToInt64(row["ProductId"]));
+                    item.Parameters.AddWithValue("@name", Convert.ToString(row["نام کالا"]) ?? "");
+                    item.Parameters.AddWithValue("@qty", Convert.ToInt64(row["تعداد"]));
+                    item.Parameters.AddWithValue("@price", Convert.ToInt64(row["فی"]));
+                    item.Parameters.AddWithValue("@discount", Convert.ToInt64(row["تخفیف"]));
+                    item.ExecuteNonQuery();
+                }
+            }
+            tx.Commit();
         }
-        tx.Commit();
+        }
+        catch (Exception ex)
+        {
+            // A failed autosave must not crash the sales window; show a clear warning instead.
+            status.Text = "هشدار: ذخیره خودکار پیش‌نویس ناموفق بود؛ اطلاعات ممکن است ذخیره نشده باشد. " + ex.Message;
+        }
     }
 
     long InvoiceTotal()
