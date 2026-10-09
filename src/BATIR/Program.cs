@@ -10,6 +10,18 @@ namespace BATIR
         static void Main(string[] args)
         {
             Batteries_V2.Init();
+            var selfTestMode = args.Any(a => a.StartsWith("--self-test", StringComparison.OrdinalIgnoreCase));
+            if (selfTestMode)
+            {
+                var testRoot = Path.Combine(Path.GetTempPath(), "BATIR-SelfTest-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(testRoot);
+                Environment.SetEnvironmentVariable("BATIR_DATABASE_PATH", Path.Combine(testRoot, "batir.db"));
+            }
+            if (args.Any(a => string.Equals(a, "--self-test-stage1", StringComparison.OrdinalIgnoreCase)))
+            {
+                Environment.ExitCode = Stage1SelfTest.Run();
+                return;
+            }
             if (args.Any(a => string.Equals(a, "--self-test-500", StringComparison.OrdinalIgnoreCase)))
             {
                 Environment.ExitCode = Operational500SelfTest.Run();
