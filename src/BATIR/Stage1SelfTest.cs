@@ -8,6 +8,7 @@ internal static class Stage1SelfTest
     {
         try
         {
+            TestDraftPersistence();
             TestBackupAndRestore();
             TestLegacySchemaMigration();
             Console.WriteLine("BATIR Stage 1 test passed: isolated database, backup verification, restore, and legacy schema migration.");
@@ -18,6 +19,36 @@ internal static class Stage1SelfTest
             Console.Error.WriteLine("BATIR Stage 1 test failed: " + ex);
             return 1;
         }
+    }
+
+    private static void TestDraftPersistence()
+    {
+        long productId;
+        using (var cn = Database.Open())
+        using (var cmd = cn.CreateCommand())
+        {
+            AdvancedFeaturesMigration.Run(cn);
+            cmd.CommandText = @"INSERT INTO Products(Code,Barcode,Name,PurchasePrice,SalePrice,Stock,MinStock,CreatedAt,UnitName)
+VALUES('STAGE1-DRAFT','STAGE1-DRAFT-BAR','Stage 1 draft persistence probe',100,150,5,0,datetime('now'),'عدد');
+SELECT last_insert_rowid();";
+            productId = Convert.ToInt64(cmd.ExecuteScalar());
+        }
+
+        Database.Execute(@"INSERT OR REPLACE INTO DraftInvoice(Id,CustomerName,Notes,Paid,PaymentMethod,UpdatedAt)
+VALUES(1,'Stage 1 customer','autosave recovery probe',50,'کارت',datetime('now'));
+DELETE FROM DraftInvoiceItems;");
+        Database.Execute(@"INSERT INTO DraftInvoiceItems(ProductId,ProductName,Quantity,UnitPrice,Discount)
+VALUES(@product,'Stage 1 draft persistence probe',2,150,10);", new SqliteParameter("@product", productId));
+
+        var header = Database.Query("SELECT CustomerName,Notes,Paid,PaymentMethod FROM DraftInvoice WHERE Id=1;");
+        var items = Database.Query("SELECT ProductId,Quantity,UnitPrice,Discount FROM DraftInvoiceItems;");
+        Require(header.Rows.Count == 1, "draft header persisted");
+        Require(Convert.ToString(header.Rows[0]["CustomerName"]) == "Stage 1 customer", "draft customer recovered");
+        Require(Convert.ToString(header.Rows[0]["Notes"]) == "autosave recovery probe", "draft notes recovered");
+        Require(Convert.ToInt64(header.Rows[0]["Paid"]) == 50, "draft paid amount recovered");
+        Require(Convert.ToString(header.Rows[0]["PaymentMethod"]) == "کارت", "draft payment method recovered");
+        Require(items.Rows.Count == 1 && Convert.ToInt64(items.Rows[0]["Quantity"]) == 2, "draft item recovered");
+        Console.WriteLine("Stage 1 draft persistence: passed (customer, notes, paid amount, payment method, and line item round-trip).");
     }
 
     private static void TestBackupAndRestore()
