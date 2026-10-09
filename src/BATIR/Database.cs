@@ -5,9 +5,12 @@ namespace BATIR;
 
 internal static class Database
 {
-    private static readonly string Folder = Path.Combine(
+    private static readonly string DefaultFolder = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BATIR");
-    public static string FilePath => Path.Combine(Folder, "batir.db");
+    public static string FilePath => Environment.GetEnvironmentVariable("BATIR_DATABASE_PATH") is { Length: > 0 } overridePath
+        ? Path.GetFullPath(overridePath)
+        : Path.Combine(DefaultFolder, "batir.db");
+    private static string Folder => Path.GetDirectoryName(FilePath) ?? DefaultFolder;
 
     public static SqliteConnection Open()
     {
@@ -249,6 +252,8 @@ CREATE INDEX IF NOT EXISTS IX_Suppliers_Phone ON Suppliers(Phone);";
             if (!VerifyBackup(tempPath))
                 throw new InvalidDataException("فایل پشتیبان از نظر ساختار SQLite معتبر نیست.");
 
+            // Release pooled handles before replacing the active SQLite file on Windows.
+            SqliteConnection.ClearAllPools();
             File.Copy(tempPath, FilePath, true);
             return safetyPath;
         }
