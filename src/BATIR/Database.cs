@@ -216,10 +216,20 @@ CREATE INDEX IF NOT EXISTS IX_Suppliers_Phone ON Suppliers(Phone);";
 
         using var cn = new SqliteConnection("Data Source=" + sourcePath + ";");
         cn.Open();
-        using var cmd = cn.CreateCommand();
-        cmd.CommandText = "PRAGMA integrity_check;";
-        var result = Convert.ToString(cmd.ExecuteScalar());
-        return string.Equals(result, "ok", StringComparison.OrdinalIgnoreCase);
+        using (var integrity = cn.CreateCommand())
+        {
+            integrity.CommandText = "PRAGMA integrity_check;";
+            var result = Convert.ToString(integrity.ExecuteScalar());
+            if (!string.Equals(result, "ok", StringComparison.OrdinalIgnoreCase))
+                return false;
+        }
+
+        // An arbitrary, empty SQLite file can pass integrity_check. Do not treat it
+        // as a BATIR backup: restoring it would replace the user's accounting data.
+        using var schema = cn.CreateCommand();
+        schema.CommandText = @"SELECT COUNT(*) FROM sqlite_master
+WHERE type='table' AND name IN ('Products','Settings','Invoices','InvoiceItems');";
+        return Convert.ToInt32(schema.ExecuteScalar()) == 4;
     }
 
     public static string RestoreFrom(string sourcePath)
