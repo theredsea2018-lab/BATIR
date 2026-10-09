@@ -976,11 +976,16 @@ WHERE Active=1 AND (Barcode=@q OR Name LIKE @like) ORDER BY CASE WHEN Barcode=@q
     {
         try
         {
-            var header = Database.Query("SELECT CustomerName, Notes FROM DraftInvoice WHERE Id=1 LIMIT 1");
+            var header = Database.Query("SELECT CustomerName, Notes, Paid, PaymentMethod FROM DraftInvoice WHERE Id=1 LIMIT 1");
             if (header.Rows.Count == 0) return;
 
             customerName.Text = Convert.ToString(header.Rows[0]["CustomerName"]) ?? "";
             invoiceNote.Text = Convert.ToString(header.Rows[0]["Notes"]) ?? "";
+            var savedPaid = header.Rows[0]["Paid"] == DBNull.Value ? 0L : Convert.ToInt64(header.Rows[0]["Paid"]);
+            invoicePaid.Value = Math.Max(invoicePaid.Minimum, Math.Min(invoicePaid.Maximum, (decimal)savedPaid));
+            var savedMethod = Convert.ToString(header.Rows[0]["PaymentMethod"]) ?? "نقدی";
+            var savedMethodIndex = paymentMethod.Items.IndexOf(savedMethod);
+            paymentMethod.SelectedIndex = savedMethodIndex >= 0 ? savedMethodIndex : 0;
 
             var items = Database.Query(@"SELECT ProductId,ProductName,Quantity,UnitPrice,Discount
 FROM DraftInvoiceItems ORDER BY Id");
@@ -1023,10 +1028,12 @@ FROM DraftInvoiceItems ORDER BY Id");
         {
             using var header = cn.CreateCommand();
             header.Transaction = tx;
-            header.CommandText = @"INSERT INTO DraftInvoice(Id,CustomerName,Notes,UpdatedAt)
-VALUES(1,@customer,@notes,@date)";
+            header.CommandText = @"INSERT INTO DraftInvoice(Id,CustomerName,Notes,Paid,PaymentMethod,UpdatedAt)
+VALUES(1,@customer,@notes,@paid,@method,@date)";
             header.Parameters.AddWithValue("@customer", customerName.Text.Trim());
             header.Parameters.AddWithValue("@notes", invoiceNote.Text.Trim());
+            header.Parameters.AddWithValue("@paid", (long)invoicePaid.Value);
+            header.Parameters.AddWithValue("@method", paymentMethod.SelectedItem?.ToString() ?? "نقدی");
             header.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             header.ExecuteNonQuery();
 
