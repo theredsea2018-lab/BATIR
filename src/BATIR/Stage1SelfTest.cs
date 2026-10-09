@@ -64,7 +64,8 @@ VALUES(@product,'Stage 1 draft persistence probe',2,150,10);", new SqliteParamet
         var root = Path.GetDirectoryName(Database.FilePath)!;
         var backupPath = Path.Combine(root, "stage1-verified-backup.db");
         Database.BackupTo(backupPath);
-        Require(Database.VerifyBackup(backupPath), "backup integrity check");
+        Require(Database.VerifyBackup(backupPath), "backup integrity and BATIR schema check");
+        TestRejectNonBatirDatabase(root);
 
         Database.Execute("UPDATE Settings SET Value='after',UpdatedAt=datetime('now') WHERE Key='Stage1BackupRestoreProbe';");
         var safetyPath = Database.RestoreFrom(backupPath);
@@ -73,6 +74,20 @@ VALUES(@product,'Stage 1 draft persistence probe',2,150,10);", new SqliteParamet
         var restored = Database.Query("SELECT Value FROM Settings WHERE Key='Stage1BackupRestoreProbe';");
         Require(restored.Rows.Count == 1 && Convert.ToString(restored.Rows[0]["Value"]) == "before", "restore returns database to backup state");
         Console.WriteLine("Stage 1 backup/restore: passed (backup integrity, safety copy, data restoration).");
+    }
+
+    private static void TestRejectNonBatirDatabase(string root)
+    {
+        var foreignPath = Path.Combine(root, "stage1-not-a-batir-backup.db");
+        using (var foreign = new SqliteConnection("Data Source=" + foreignPath))
+        {
+            foreign.Open();
+            using var cmd = foreign.CreateCommand();
+            cmd.CommandText = "CREATE TABLE UnrelatedData(Id INTEGER PRIMARY KEY, Value TEXT);";
+            cmd.ExecuteNonQuery();
+        }
+        Require(!Database.VerifyBackup(foreignPath), "reject valid SQLite file without BATIR core tables");
+        Console.WriteLine("Stage 1 backup validation: passed (rejects valid SQLite files that are not BATIR backups).");
     }
 
     private static void TestLegacySchemaMigration()
