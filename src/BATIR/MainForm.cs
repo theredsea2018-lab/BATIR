@@ -1055,7 +1055,6 @@ FROM DraftInvoiceItems ORDER BY Id");
             }
             tx.Commit();
         }
-        }
         catch (Exception ex)
         {
             // A failed autosave must not crash the sales window; show a clear warning instead.
