@@ -9,6 +9,8 @@ internal static class Stage1SelfTest
         try
         {
             TestDraftPersistence();
+            TestPurchaseDraftPersistence();
+            TestMigrationIdempotency();
             TestBackupAndRestore();
             TestLegacySchemaMigration();
             Console.WriteLine("BATIR Stage 1 test passed: isolated database, backup verification, restore, and legacy schema migration.");
@@ -50,6 +52,48 @@ VALUES(@product,'Stage 1 draft persistence probe',2,150,10);", new SqliteParamet
         Require(Convert.ToString(header.Rows[0]["PaymentMethod"]) == "کارت", "draft payment method recovered");
         Require(items.Rows.Count == 1 && Convert.ToInt64(items.Rows[0]["Quantity"]) == 2, "draft item recovered");
         Console.WriteLine("Stage 1 draft persistence: passed (customer, notes, paid amount, payment method, and line item round-trip).");
+    }
+
+    private static void TestPurchaseDraftPersistence()
+    {
+        var products = Database.Query("SELECT Id,Name FROM Products WHERE Code='STAGE1-DRAFT' LIMIT 1;");
+        Require(products.Rows.Count == 1, "purchase draft test product exists");
+        var productId = Convert.ToInt64(products.Rows[0]["Id"]);
+        var productName = Convert.ToString(products.Rows[0]["Name"]) ?? "";
+
+        Database.Execute(@"DELETE FROM DraftPurchaseItems;
+DELETE FROM DraftPurchase;
+INSERT INTO DraftPurchase(Id,SupplierName,Paid,PaymentMethod,UpdatedAt)
+VALUES(1,'Stage 1 supplier',75,'انتقال بانکی',datetime('now'));");
+        Database.Execute(@"INSERT INTO DraftPurchaseItems(ProductId,ProductName,Quantity,UnitPrice,Discount)
+VALUES(@product,@name,3,200,15);",
+            new SqliteParameter("@product", productId),
+            new SqliteParameter("@name", productName));
+
+        var header = Database.Query("SELECT SupplierName,Paid,PaymentMethod FROM DraftPurchase WHERE Id=1;");
+        var items = Database.Query("SELECT ProductId,ProductName,Quantity,UnitPrice,Discount FROM DraftPurchaseItems;");
+        Require(header.Rows.Count == 1, "purchase draft header persisted");
+        Require(Convert.ToString(header.Rows[0]["SupplierName"]) == "Stage 1 supplier", "purchase draft supplier recovered");
+        Require(Convert.ToInt64(header.Rows[0]["Paid"]) == 75, "purchase draft paid amount recovered");
+        Require(Convert.ToString(header.Rows[0]["PaymentMethod"]) == "انتقال بانکی", "purchase draft payment method recovered");
+        Require(items.Rows.Count == 1, "purchase draft line persisted");
+        Require(Convert.ToInt64(items.Rows[0]["ProductId"]) == productId, "purchase draft product reference recovered");
+        Require(Convert.ToInt64(items.Rows[0]["Quantity"]) == 3, "purchase draft quantity recovered");
+        Require(Convert.ToInt64(items.Rows[0]["UnitPrice"]) == 200, "purchase draft unit price recovered");
+        Require(Convert.ToInt64(items.Rows[0]["Discount"]) == 15, "purchase draft discount recovered");
+        Console.WriteLine("Stage 1 purchase draft persistence: passed (supplier, payment, and line-item round-trip).");
+    }
+
+    private static void TestMigrationIdempotency()
+    {
+        using var cn = Database.Open();
+        AdvancedFeaturesMigration.Run(cn);
+        AdvancedFeaturesMigration.Run(cn);
+        Require(Database.VerifyBackup(Database.FilePath), "database remains valid after repeated migration");
+        var product = Database.Query("SELECT Name,Stock FROM Products WHERE Code='STAGE1-DRAFT' LIMIT 1;");
+        Require(product.Rows.Count == 1, "repeated migration preserves existing product");
+        Require(Convert.ToInt64(product.Rows[0]["Stock"]) == 5, "repeated migration preserves existing stock");
+        Console.WriteLine("Stage 1 migration idempotency: passed (repeated migration preserves existing records and database integrity).");
     }
 
     private static void TestBackupAndRestore()
