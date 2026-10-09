@@ -29,8 +29,9 @@ internal static class Stage1SelfTest
         {
             AdvancedFeaturesMigration.Run(cn);
             cmd.CommandText = @"INSERT INTO Products(Code,Barcode,Name,PurchasePrice,SalePrice,Stock,MinStock,CreatedAt,UnitName)
-VALUES('STAGE1-DRAFT','STAGE1-DRAFT-BAR','Stage 1 draft persistence probe',100,150,5,0,datetime('now'),'عدد');
-SELECT last_insert_rowid();";
+VALUES('STAGE1-DRAFT','STAGE1-DRAFT-BAR','Stage 1 draft persistence probe',100,150,5,0,datetime('now'),'عدد');";
+            cmd.ExecuteNonQuery();
+            cmd.CommandText = "SELECT last_insert_rowid();";
             productId = Convert.ToInt64(cmd.ExecuteScalar());
         }
 
