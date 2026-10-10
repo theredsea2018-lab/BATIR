@@ -75,17 +75,37 @@ public class PurchaseForm : Form
     {
         if(!PermissionService.Require("Purchases.Create", this)) return;
         var q=product.Text.Trim(); if(q==""){MessageBox.Show("کالا را وارد کنید.");return;}
-        var dt=Database.Query("SELECT Id,Name,PurchasePrice FROM Products WHERE Active=1 AND (Barcode=@q OR Name LIKE @like) ORDER BY CASE WHEN Barcode=@q THEN 0 ELSE 1 END,Id DESC LIMIT 1",
+        var dt=Database.Query(@"SELECT Id,Code,TechnicalCode,Name,PurchasePrice,Stock,MaxStock
+FROM Products WHERE Active=1 AND (Barcode=@q OR Code=@q OR TechnicalCode=@q OR Name LIKE @like)
+ORDER BY CASE WHEN Barcode=@q OR Code=@q OR TechnicalCode=@q THEN 0 ELSE 1 END,Id DESC LIMIT 1",
             new SqliteParameter("@q",q),new SqliteParameter("@like","%"+q+"%"));
         if(dt.Rows.Count==0){MessageBox.Show("کالا پیدا نشد.");return;}
         long id=Convert.ToInt64(dt.Rows[0]["Id"]);
         string n=Convert.ToString(dt.Rows[0]["Name"])??"";
         long price=unitPrice.Value>0?(long)unitPrice.Value:Convert.ToInt64(dt.Rows[0]["PurchasePrice"]);
+        long currentStock=Convert.ToInt64(dt.Rows[0]["Stock"]);
+        long maxStock=Convert.ToInt64(dt.Rows[0]["MaxStock"]);
         long qnty=(long)qty.Value, disc=(long)discount.Value;
+        long existingQty=0;
+        foreach(DataRow existing in items.Rows)
+            if(Convert.ToInt64(existing["ProductId"])==id) { existingQty=Convert.ToInt64(existing["تعداد"]); break; }
+        long projectedStock=currentStock+existingQty+qnty;
+        if(maxStock>0 && projectedStock>maxStock &&
+            MessageBox.Show("موجودی پس از این خرید از حداکثر تعیین‌شده برای کالا بیشتر می‌شود. ادامه می‌دهید؟",
+                "هشدار حداکثر موجودی",MessageBoxButtons.YesNo,MessageBoxIcon.Warning)!=DialogResult.Yes) return;
+
         long newLineTotal = qnty * price;
         if (disc > newLineTotal) { MessageBox.Show("تخفیف نمی‌تواند بیشتر از مبلغ ردیف خرید باشد."); return; }
         foreach(DataRow r in items.Rows) if(Convert.ToInt64(r["ProductId"])==id)
-        { var newQty=Convert.ToInt64(r["تعداد"])+qnty; var newDisc=Convert.ToInt64(r["تخفیف"])+disc; var lineTotal=newQty*price; if(newDisc>lineTotal){MessageBox.Show("تخفیف تجمعی این کالا نمی‌تواند بیشتر از مبلغ ردیف خرید باشد.");return;} r["تعداد"]=newQty; r["فی"]=price; r["تخفیف"]=newDisc; r["جمع"]=lineTotal-newDisc; UpdateTotal(); SaveDraftPurchase(); return; }
+        {
+            var newQty=Convert.ToInt64(r["تعداد"])+qnty;
+            var newDisc=Convert.ToInt64(r["تخفیف"])+disc;
+            var lineTotal=newQty*price;
+            if(newDisc>lineTotal){MessageBox.Show("تخفیف تجمعی این کالا نمی‌تواند بیشتر از مبلغ ردیف خرید باشد.");return;}
+            r["تعداد"]=newQty;r["فی"]=price;r["تخفیف"]=newDisc;r["جمع"]=lineTotal-newDisc;
+            product.Clear();qty.Value=1;unitPrice.Value=0;discount.Value=0;
+            UpdateTotal();SaveDraftPurchase();return;
+        }
         var row=items.NewRow(); row["ProductId"]=id;row["کالا"]=n;row["تعداد"]=qnty;row["فی"]=price;row["تخفیف"]=disc;row["جمع"]=qnty*price-disc;items.Rows.Add(row);
         product.Clear();qty.Value=1;unitPrice.Value=0;discount.Value=0;UpdateTotal();SaveDraftPurchase();
     }
@@ -166,7 +186,17 @@ public class PurchaseForm : Form
         if(t<=0){MessageBox.Show("مبلغ خرید باید بیشتر از صفر باشد.");return;}
         if(p>t){MessageBox.Show("پرداختی بیشتر از مبلغ خرید است.");return;}
         if((p>0 || t-p>0) && string.IsNullOrWhiteSpace(supplier.Text)){MessageBox.Show("برای ثبت مبلغ پرداختی یا مانده خرید، تأمین‌کننده را مشخص کنید.");return;}
-        foreach(DataRow r in items.Rows){ var qv=Convert.ToInt64(r["تعداد"]); var pv=Convert.ToInt64(r["فی"]); var dv=Convert.ToInt64(r["تخفیف"]); if(qv<=0 || pv<0 || dv<0 || dv>qv*pv) throw new InvalidOperationException("مقدار یا تخفیف یکی از اقلام خرید نامعتبر است."); }
+        foreach(DataRow r in items.Rows)
+        {
+            var qv=Convert.ToInt64(r["تعداد"]);
+            var pv=Convert.ToInt64(r["فی"]);
+            var dv=Convert.ToInt64(r["تخفیف"]);
+            if(qv<=0 || pv<0 || dv<0 || dv>qv*pv)
+            {
+                MessageBox.Show("مقدار یا تخفیف یکی از اقلام خرید نامعتبر است. فاکتور ثبت نشد.", "کنترل اطلاعات", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+        }
         try{
             using var cn=Database.Open();using var tx=cn.BeginTransaction();
             long? sid=null;string sn=supplier.Text.Trim();
