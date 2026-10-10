@@ -13,9 +13,19 @@ public class MainForm : Form
     readonly TextBox barcode = new();
     readonly TextBox brand = new();
     readonly TextBox category = new();
+    readonly TextBox productCode = new();
+    readonly TextBox technicalCode = new();
+    readonly TextBox productDescription = new();
     readonly NumericUpDown purchase = new();
     readonly NumericUpDown sale = new();
     readonly NumericUpDown stock = new();
+    readonly NumericUpDown minStock = new() { Minimum = 0, Maximum = 999999999999 };
+    readonly NumericUpDown maxStock = new() { Minimum = 0, Maximum = 999999999999 };
+    readonly NumericUpDown reorderPoint = new() { Minimum = 0, Maximum = 999999999999 };
+    readonly NumericUpDown minSalePrice = new() { Minimum = 0, Maximum = 999999999999 };
+    readonly NumericUpDown maxSalePrice = new() { Minimum = 0, Maximum = 999999999999 };
+    readonly Button productSaveButton = new() { Text = "ثبت کالا" };
+    long editingProductId = 0;
     readonly TextBox unitName = new();
     readonly TextBox secondaryUnitName = new();
     readonly NumericUpDown unitFactor = new() { Minimum = 1, Maximum = 1000000, Value = 1 };
@@ -488,21 +498,39 @@ public class MainForm : Form
     TabPage BuildProducts()
     {
         var page = new TabPage("کالا و انبار");
-        var form = new TableLayoutPanel { Dock = DockStyle.Top, Height = 170, ColumnCount = 4, RowCount = 3, Padding = new Padding(8) };
+        // Product master data follows the Novin manual: identity, technical details,
+        // units, stock thresholds, and permitted sales-price range are stored per item.
+        var form = new TableLayoutPanel { Dock = DockStyle.Top, Height = 292, ColumnCount = 4, RowCount = 6, Padding = new Padding(8) };
         for (int i = 0; i < 4; i++) form.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
         AddText(form, "نام کالا", name, 0, 0); AddText(form, "بارکد", barcode, 1, 0);
         AddText(form, "برند", brand, 2, 0); AddText(form, "دسته‌بندی", category, 3, 0);
-        AddNum(form, "قیمت خرید", purchase, 0, 1); AddNum(form, "قیمت فروش", sale, 1, 1); AddNum(form, "موجودی", stock, 2, 1);
-        AddText(form, "واحد اصلی", unitName, 0, 2); AddText(form, "واحد فرعی", secondaryUnitName, 1, 2); AddNum(form, "ضریب واحد", unitFactor, 2, 2);
-        var add = new Button { Text = "ثبت کالا", Dock = DockStyle.Fill }; add.Click += AddProduct; form.Controls.Add(add, 3, 1);
-        var finance = new Button { Text = "دریافت / پرداخت / هزینه", Dock = DockStyle.Fill }; finance.Click += (_,_) => new FinancialOperationsForm().ShowDialog(this); form.Controls.Add(finance, 3, 2);
+        AddText(form, "کد کالا", productCode, 0, 1); AddText(form, "شماره فنی", technicalCode, 1, 1);
+        AddText(form, "مشخصات کالا", productDescription, 2, 1);
+        AddNum(form, "قیمت خرید", purchase, 0, 2); AddNum(form, "قیمت فروش", sale, 1, 2);
+        AddNum(form, "موجودی", stock, 2, 2); AddNum(form, "حداقل موجودی", minStock, 3, 2);
+        AddNum(form, "حداکثر موجودی", maxStock, 0, 3); AddNum(form, "نقطه سفارش", reorderPoint, 1, 3);
+        AddNum(form, "حداقل قیمت فروش", minSalePrice, 2, 3); AddNum(form, "حداکثر قیمت فروش", maxSalePrice, 3, 3);
+        AddText(form, "واحد اصلی", unitName, 0, 4); AddText(form, "واحد فرعی", secondaryUnitName, 1, 4);
+        AddNum(form, "ضریب واحد", unitFactor, 2, 4);
+        productSaveButton.Dock = DockStyle.Fill;
+        productSaveButton.Click += SaveProduct;
+        form.Controls.Add(productSaveButton, 3, 4);
+        var newProduct = new Button { Text = "کالای جدید / پاک‌کردن فرم", Dock = DockStyle.Fill };
+        newProduct.Click += (_, _) => ClearProductForm();
+        form.Controls.Add(newProduct, 0, 5);
+        var finance = new Button { Text = "دریافت / پرداخت / هزینه", Dock = DockStyle.Fill };
+        finance.Click += (_, _) => new FinancialOperationsForm().ShowDialog(this);
+        form.Controls.Add(finance, 3, 5);
 
         var searchPanel = new Panel { Dock = DockStyle.Top, Height = 42, Padding = new Padding(8) };
         search.Dock = DockStyle.Fill; search.TextChanged += (_, _) => LoadProducts(search.Text.Trim());
         searchPanel.Controls.Add(search);
 
         grid.Dock = DockStyle.Fill; grid.ReadOnly = true; grid.AllowUserToAddRows = false;
+        grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+        grid.MultiSelect = false;
         grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        grid.CellDoubleClick += (_, e) => { if (e.RowIndex >= 0) LoadSelectedProductIntoEditor(); };
         page.Controls.Add(grid); page.Controls.Add(searchPanel); page.Controls.Add(form);
         return page;
     }
@@ -823,23 +851,92 @@ VALUES(@date,'کاربر','دریافت از مشتری','Customer',@id,@details
 
     void LoadProducts(string q = "")
     {
-        var sql = "SELECT Id,Code AS [کد],Barcode AS [بارکد],Name AS [نام کالا],Brand AS [برند],Category AS [دسته],UnitName AS [واحد],SecondaryUnitName AS [واحد فرعی],UnitConversionFactor AS [ضریب],PurchasePrice AS [خرید],SalePrice AS [فروش],Stock AS [موجودی] FROM Products WHERE Active=1";
-        if (!string.IsNullOrWhiteSpace(q)) sql += " AND (Name LIKE @q OR Barcode LIKE @q OR Brand LIKE @q OR Category LIKE @q)";
+        var sql = @"SELECT Id,Code AS [کد],Barcode AS [بارکد],TechnicalCode AS [شماره فنی],Name AS [نام کالا],
+Brand AS [برند],Category AS [دسته],UnitName AS [واحد],SecondaryUnitName AS [واحد فرعی],
+UnitConversionFactor AS [ضریب],PurchasePrice AS [خرید],SalePrice AS [فروش],Stock AS [موجودی],
+MinStock AS [حداقل موجودی],MaxStock AS [حداکثر موجودی],ReorderPoint AS [نقطه سفارش]
+FROM Products WHERE Active=1";
+        if (!string.IsNullOrWhiteSpace(q))
+            sql += " AND (Name LIKE @q OR Barcode LIKE @q OR Code LIKE @q OR TechnicalCode LIKE @q OR Brand LIKE @q OR Category LIKE @q OR Description LIKE @q)";
         sql += " ORDER BY Id DESC";
         var dt = string.IsNullOrWhiteSpace(q) ? Database.Query(sql) : Database.Query(sql, new SqliteParameter("@q", "%" + q + "%"));
-        grid.DataSource = dt; status.Text = "تعداد کالا: " + dt.Rows.Count.ToString("N0") + " | " + CurrencyName();
+        grid.DataSource = dt;
+        if (grid.Columns.Contains("Id")) grid.Columns["Id"].Visible = false;
+        status.Text = "تعداد کالا: " + dt.Rows.Count.ToString("N0") + " | " + CurrencyName();
     }
 
-    void AddProduct(object? sender, EventArgs e)
+    void LoadSelectedProductIntoEditor()
+    {
+        if (grid.CurrentRow == null || grid.CurrentRow.IsNewRow) return;
+        if (!long.TryParse(Convert.ToString(grid.CurrentRow.Cells["Id"].Value), out var id)) return;
+        var result = Database.Query("SELECT * FROM Products WHERE Id=@id LIMIT 1", new SqliteParameter("@id", id));
+        if (result.Rows.Count != 1) return;
+        var row = result.Rows[0];
+        string value(string column) => row[column] == DBNull.Value ? "" : Convert.ToString(row[column]) ?? "";
+        productCode.Text = value("Code");
+        barcode.Text = value("Barcode");
+        name.Text = value("Name");
+        technicalCode.Text = value("TechnicalCode");
+        productDescription.Text = value("Description");
+        brand.Text = value("Brand");
+        category.Text = value("Category");
+        unitName.Text = value("UnitName");
+        secondaryUnitName.Text = value("SecondaryUnitName");
+        SetNumericValue(purchase, row["PurchasePrice"]);
+        SetNumericValue(sale, row["SalePrice"]);
+        SetNumericValue(stock, row["Stock"]);
+        SetNumericValue(minStock, row["MinStock"]);
+        SetNumericValue(maxStock, row["MaxStock"]);
+        SetNumericValue(reorderPoint, row["ReorderPoint"]);
+        SetNumericValue(minSalePrice, row["MinSalePrice"]);
+        SetNumericValue(maxSalePrice, row["MaxSalePrice"]);
+        SetNumericValue(unitFactor, row["UnitConversionFactor"]);
+        editingProductId = id;
+        productSaveButton.Text = "ذخیره تغییرات کالا";
+        status.Text = "ویرایش کالا: " + name.Text;
+    }
+
+    static void SetNumericValue(NumericUpDown control, object value)
+    {
+        decimal number;
+        try { number = Convert.ToDecimal(value); }
+        catch { number = 0; }
+        if (number < control.Minimum) number = control.Minimum;
+        if (number > control.Maximum) number = control.Maximum;
+        control.Value = number;
+    }
+
+    void ClearProductForm()
+    {
+        editingProductId = 0;
+        name.Clear(); barcode.Clear(); brand.Clear(); category.Clear(); productCode.Clear();
+        technicalCode.Clear(); productDescription.Clear(); unitName.Clear(); secondaryUnitName.Clear();
+        purchase.Value = 0; sale.Value = 0; stock.Value = 0; minStock.Value = 0; maxStock.Value = 0;
+        reorderPoint.Value = 0; minSalePrice.Value = 0; maxSalePrice.Value = 0; unitFactor.Value = 1;
+        productSaveButton.Text = "ثبت کالا";
+        status.Text = "آماده ثبت کالای جدید | " + CurrencyName();
+    }
+
+    void SaveProduct(object? sender, EventArgs e)
     {
         if (!PermissionService.Require("Products.Edit", this)) return;
         if (string.IsNullOrWhiteSpace(name.Text)) { MessageBox.Show("نام کالا را وارد کنید."); return; }
+        if (maxStock.Value > 0 && minStock.Value > maxStock.Value)
+        {
+            MessageBox.Show("حداقل موجودی نمی‌تواند از حداکثر موجودی بیشتر باشد.", "کنترل موجودی", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (minSalePrice.Value > 0 && maxSalePrice.Value > 0 && minSalePrice.Value > maxSalePrice.Value)
+        {
+            MessageBox.Show("حداقل قیمت فروش نمی‌تواند از حداکثر قیمت فروش بیشتر باشد.", "کنترل قیمت", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
 
         var newBarcode = barcode.Text.Trim();
         if (!string.IsNullOrWhiteSpace(newBarcode))
         {
-            var duplicate = Database.Query("SELECT Id,Name FROM Products WHERE Active=1 AND Barcode=@barcode LIMIT 1",
-                new SqliteParameter("@barcode", newBarcode));
+            var duplicate = Database.Query("SELECT Id,Name FROM Products WHERE Active=1 AND Barcode=@barcode AND Id<>@id LIMIT 1",
+                new SqliteParameter("@barcode", newBarcode), new SqliteParameter("@id", editingProductId));
             if (duplicate.Rows.Count > 0)
             {
                 var oldName = Convert.ToString(duplicate.Rows[0]["Name"]) ?? "";
@@ -848,21 +945,67 @@ VALUES(@date,'کاربر','دریافت از مشتری','Customer',@id,@details
                 return;
             }
         }
+        var newCode = productCode.Text.Trim();
+        if (!string.IsNullOrWhiteSpace(newCode))
+        {
+            var duplicateCode = Database.Query("SELECT Id,Name FROM Products WHERE Active=1 AND Code=@code AND Id<>@id LIMIT 1",
+                new SqliteParameter("@code", newCode), new SqliteParameter("@id", editingProductId));
+            if (duplicateCode.Rows.Count > 0)
+            {
+                MessageBox.Show("کد کالا تکراری است و برای کالای دیگری استفاده شده.", "کد تکراری", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+        }
         if (sale.Value > 0 && sale.Value < purchase.Value &&
-            MessageBox.Show("قیمت فروش کمتر از قیمت خرید است. ثبت شود؟", "هشدار", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+            MessageBox.Show("قیمت فروش کمتر از قیمت خرید است. ادامه می‌دهید؟", "هشدار قیمت", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+        if (minSalePrice.Value > 0 && sale.Value > 0 && sale.Value < minSalePrice.Value &&
+            MessageBox.Show("قیمت فروش پایه کمتر از حداقل قیمت فروش تعیین‌شده است. ادامه می‌دهید؟", "هشدار حداقل قیمت", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+        if (maxSalePrice.Value > 0 && sale.Value > maxSalePrice.Value &&
+            MessageBox.Show("قیمت فروش پایه بیشتر از حداکثر قیمت فروش تعیین‌شده است. ادامه می‌دهید؟", "هشدار حداکثر قیمت", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
 
-        Database.Execute(@"INSERT INTO Products(Code,Barcode,Name,Brand,Category,PurchasePrice,SalePrice,Stock,CreatedAt,UnitName,SecondaryUnitName,UnitConversionFactor)
-VALUES(@code,@barcode,@name,@brand,@category,@purchase,@sale,@stock,@date,@unit,@secondary,@factor)",
-            new SqliteParameter("@code", ""), new SqliteParameter("@barcode", barcode.Text.Trim()),
-            new SqliteParameter("@name", name.Text.Trim()), new SqliteParameter("@brand", brand.Text.Trim()),
-            new SqliteParameter("@category", category.Text.Trim()), new SqliteParameter("@purchase", (long)purchase.Value),
-            new SqliteParameter("@sale", (long)sale.Value), new SqliteParameter("@stock", (long)stock.Value),
-            new SqliteParameter("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")),
-            new SqliteParameter("@unit", string.IsNullOrWhiteSpace(unitName.Text) ? "عدد" : unitName.Text.Trim()),
-            new SqliteParameter("@secondary", string.IsNullOrWhiteSpace(secondaryUnitName.Text) ? (object)DBNull.Value : secondaryUnitName.Text.Trim()),
-            new SqliteParameter("@factor", (long)unitFactor.Value));
-        name.Clear(); barcode.Clear(); brand.Clear(); category.Clear(); unitName.Clear(); secondaryUnitName.Clear(); unitFactor.Value = 1; purchase.Value = 0; sale.Value = 0; stock.Value = 0;
-        LoadProducts();
+        var parameters = new SqliteParameter[]
+        {
+            new("@code", newCode),
+            new("@barcode", newBarcode),
+            new("@name", name.Text.Trim()),
+            new("@technical", technicalCode.Text.Trim()),
+            new("@description", productDescription.Text.Trim()),
+            new("@brand", brand.Text.Trim()),
+            new("@category", category.Text.Trim()),
+            new("@purchase", (long)purchase.Value),
+            new("@sale", (long)sale.Value),
+            new("@stock", (long)stock.Value),
+            new("@minStock", (long)minStock.Value),
+            new("@maxStock", (long)maxStock.Value),
+            new("@reorder", (long)reorderPoint.Value),
+            new("@minSale", (long)minSalePrice.Value),
+            new("@maxSale", (long)maxSalePrice.Value),
+            new("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")),
+            new("@unit", string.IsNullOrWhiteSpace(unitName.Text) ? "عدد" : unitName.Text.Trim()),
+            new("@secondary", string.IsNullOrWhiteSpace(secondaryUnitName.Text) ? (object)DBNull.Value : secondaryUnitName.Text.Trim()),
+            new("@factor", (long)unitFactor.Value)
+        };
+        var wasEditing = editingProductId > 0;
+        if (wasEditing)
+        {
+            var updateParameters = parameters.Concat(new[] { new SqliteParameter("@id", editingProductId) }).ToArray();
+            Database.Execute(@"UPDATE Products SET Code=@code,Barcode=@barcode,Name=@name,TechnicalCode=@technical,Description=@description,
+Brand=@brand,Category=@category,PurchasePrice=@purchase,SalePrice=@sale,Stock=@stock,MinStock=@minStock,MaxStock=@maxStock,
+ReorderPoint=@reorder,MinSalePrice=@minSale,MaxSalePrice=@maxSale,UnitName=@unit,SecondaryUnitName=@secondary,
+UnitConversionFactor=@factor WHERE Id=@id", updateParameters);
+        }
+        else
+        {
+            Database.Execute(@"INSERT INTO Products(Code,Barcode,Name,TechnicalCode,Description,Brand,Category,PurchasePrice,SalePrice,Stock,
+MinStock,MaxStock,ReorderPoint,MinSalePrice,MaxSalePrice,CreatedAt,UnitName,SecondaryUnitName,UnitConversionFactor)
+VALUES(@code,@barcode,@name,@technical,@description,@brand,@category,@purchase,@sale,@stock,
+@minStock,@maxStock,@reorder,@minSale,@maxSale,@date,@unit,@secondary,@factor)", parameters);
+        }
+
+        ClearProductForm();
+        LoadProducts(search.Text.Trim());
+        MessageBox.Show(wasEditing ? "اطلاعات کالا به‌روزرسانی شد." : "کالا ثبت شد.", "BATIR",
+            MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     static string CurrencyName()
