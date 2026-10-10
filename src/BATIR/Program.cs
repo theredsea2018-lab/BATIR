@@ -54,6 +54,7 @@ namespace BATIR
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Idle += (_, _) => AppearanceService.ApplyOpenForms();
             var mainForm = new MainForm();
+            NovinStyleMenu.Apply(mainForm);
             AppearanceService.Apply(mainForm);
             Application.Run(mainForm);
         }
