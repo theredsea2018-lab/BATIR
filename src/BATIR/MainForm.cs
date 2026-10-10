@@ -885,6 +885,8 @@ FROM Products WHERE Active=1";
         SetNumericValue(purchase, row["PurchasePrice"]);
         SetNumericValue(sale, row["SalePrice"]);
         SetNumericValue(stock, row["Stock"]);
+        // Stock is ledger-controlled: editing a product card must not overwrite movements.
+        stock.Enabled = false;
         SetNumericValue(minStock, row["MinStock"]);
         SetNumericValue(maxStock, row["MaxStock"]);
         SetNumericValue(reorderPoint, row["ReorderPoint"]);
@@ -909,6 +911,7 @@ FROM Products WHERE Active=1";
     void ClearProductForm()
     {
         editingProductId = 0;
+        stock.Enabled = true;
         name.Clear(); barcode.Clear(); brand.Clear(); category.Clear(); productCode.Clear();
         technicalCode.Clear(); productDescription.Clear(); unitName.Clear(); secondaryUnitName.Clear();
         purchase.Value = 0; sale.Value = 0; stock.Value = 0; minStock.Value = 0; maxStock.Value = 0;
@@ -988,9 +991,11 @@ FROM Products WHERE Active=1";
         var wasEditing = editingProductId > 0;
         if (wasEditing)
         {
-            var updateParameters = parameters.Concat(new[] { new SqliteParameter("@id", editingProductId) }).ToArray();
+            var updateParameters = parameters
+                .Where(p => p.ParameterName != "@stock")
+                .Concat(new[] { new SqliteParameter("@id", editingProductId) }).ToArray();
             Database.Execute(@"UPDATE Products SET Code=@code,Barcode=@barcode,Name=@name,TechnicalCode=@technical,Description=@description,
-Brand=@brand,Category=@category,PurchasePrice=@purchase,SalePrice=@sale,Stock=@stock,MinStock=@minStock,MaxStock=@maxStock,
+Brand=@brand,Category=@category,PurchasePrice=@purchase,SalePrice=@sale,MinStock=@minStock,MaxStock=@maxStock,
 ReorderPoint=@reorder,MinSalePrice=@minSale,MaxSalePrice=@maxSale,UnitName=@unit,SecondaryUnitName=@secondary,
 UnitConversionFactor=@factor WHERE Id=@id", updateParameters);
         }
@@ -1060,8 +1065,10 @@ ORDER BY CASE WHEN FromDate IS NULL OR FromDate='' THEN 1 ELSE 0 END,
         var q = invoiceSearch.Text.Trim();
         if (string.IsNullOrWhiteSpace(q)) return;
 
-        var dt = Database.Query(@"SELECT Id,Name,SalePrice,Stock FROM Products
-WHERE Active=1 AND (Barcode=@q OR Name LIKE @like) ORDER BY CASE WHEN Barcode=@q THEN 0 ELSE 1 END, Id DESC LIMIT 1",
+        var dt = Database.Query(@"SELECT Id,Code,TechnicalCode,Name,SalePrice,Stock,MinStock,ReorderPoint,MinSalePrice,MaxSalePrice
+FROM Products
+WHERE Active=1 AND (Barcode=@q OR Code=@q OR TechnicalCode=@q OR Name LIKE @like)
+ORDER BY CASE WHEN Barcode=@q OR Code=@q OR TechnicalCode=@q THEN 0 ELSE 1 END, Id DESC LIMIT 1",
             new SqliteParameter("@q", q), new SqliteParameter("@like", "%" + q + "%"));
 
         if (dt.Rows.Count == 0) { MessageBox.Show("کالا پیدا نشد."); return; }
@@ -1070,15 +1077,63 @@ WHERE Active=1 AND (Barcode=@q OR Name LIKE @like) ORDER BY CASE WHEN Barcode=@q
         string productName = Convert.ToString(dt.Rows[0]["Name"]) ?? "";
         long price = ResolveCustomerTierPrice(id, Convert.ToInt64(dt.Rows[0]["SalePrice"]));
         long available = Convert.ToInt64(dt.Rows[0]["Stock"]);
+        long minimumStock = Convert.ToInt64(dt.Rows[0]["MinStock"]);
+        long reorderPoint = Convert.ToInt64(dt.Rows[0]["ReorderPoint"]);
+        long minimumPrice = Convert.ToInt64(dt.Rows[0]["MinSalePrice"]);
+        long maximumPrice = Convert.ToInt64(dt.Rows[0]["MaxSalePrice"]);
         long qty = (long)invoiceQty.Value;
-        if (qty > available) {
+        long existingQty = 0;
+        long existingDiscount = 0;
+        long lineUnitPrice = price;
+        foreach (DataRow existing in invoiceItems.Rows)
+        {
+            if (Convert.ToInt64(existing["ProductId"]) == id)
+            {
+                existingQty = Convert.ToInt64(existing["تعداد"]);
+                existingDiscount = Convert.ToInt64(existing["تخفیف"]);
+                lineUnitPrice = Convert.ToInt64(existing["فی"]);
+                break;
+            }
+        }
+
+        long requestedQty = existingQty + qty;
+        long requestedDiscount = existingDiscount + (long)invoiceDiscount.Value;
+        if (requestedDiscount > requestedQty * lineUnitPrice)
+        {
+            MessageBox.Show("تخفیف تجمعی این کالا نمی‌تواند بیشتر از مبلغ ردیف باشد.");
+            return;
+        }
+
+        decimal effectiveUnitPrice = lineUnitPrice - (decimal)requestedDiscount / requestedQty;
+        bool outsidePriceRange = (minimumPrice > 0 && effectiveUnitPrice < minimumPrice) ||
+                                 (maximumPrice > 0 && effectiveUnitPrice > maximumPrice);
+        if (outsidePriceRange)
+        {
+            if (!PermissionService.Require("Sales.OverrideMinimumPrice", this)) return;
+            var rangeMessage = minimumPrice > 0 && effectiveUnitPrice < minimumPrice
+                ? "قیمت نهایی این ردیف از حداقل قیمت مجاز کالا کمتر است."
+                : "قیمت نهایی این ردیف از حداکثر قیمت مجاز کالا بیشتر است.";
+            if (MessageBox.Show(rangeMessage + "\nبا مجوز مدیر ادامه می‌دهید؟", "کنترل محدوده قیمت",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+        }
+
+        if (requestedQty > available)
+        {
             if (!NegativeStockAllowed())
             {
                 MessageBox.Show("موجودی کالا کافی نیست و فروش با موجودی منفی در تنظیمات غیرفعال است.", "هشدار موجودی", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            if (MessageBox.Show("موجودی کالا کمتر از تعداد درخواستی است. ادامه داده شود؟", "هشدار موجودی",
+            if (MessageBox.Show("موجودی برای مقدار کل این کالا در فاکتور کافی نیست. ادامه داده شود؟", "هشدار موجودی",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+        }
+        else
+        {
+            long remainingStock = available - requestedQty;
+            long threshold = Math.Max(minimumStock, reorderPoint);
+            if (threshold > 0 && remainingStock < threshold &&
+                MessageBox.Show("موجودی پس از این فروش به زیر حداقل موجودی/نقطه سفارش می‌رسد. ادامه می‌دهید؟",
+                    "هشدار موجودی", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
         }
 
         foreach (DataRow row in invoiceItems.Rows)
