@@ -104,6 +104,8 @@ CREATE TABLE IF NOT EXISTS Settings(
  UpdatedAt TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS IX_Products_Barcode ON Products(Barcode);
 CREATE INDEX IF NOT EXISTS IX_Products_Name ON Products(Name);
+CREATE INDEX IF NOT EXISTS IX_Products_Code ON Products(Code);
+CREATE INDEX IF NOT EXISTS IX_Products_TechnicalCode ON Products(TechnicalCode);
 CREATE INDEX IF NOT EXISTS IX_Invoices_InvoiceNo ON Invoices(InvoiceNo);
 CREATE INDEX IF NOT EXISTS IX_Invoices_DateText ON Invoices(DateText);
 CREATE INDEX IF NOT EXISTS IX_InvoiceItems_InvoiceId ON InvoiceItems(InvoiceId);
@@ -149,6 +151,13 @@ VALUES(@key,@value,@date);";
         AddColumnIfMissing(cn, "Products", "UnitName", "TEXT NOT NULL DEFAULT 'عدد'");
         AddColumnIfMissing(cn, "Products", "SecondaryUnitName", "TEXT");
         AddColumnIfMissing(cn, "Products", "UnitConversionFactor", "INTEGER NOT NULL DEFAULT 1");
+        // Novin-style item-card fields; these repeatable additions preserve older BATIR databases.
+        AddColumnIfMissing(cn, "Products", "TechnicalCode", "TEXT");
+        AddColumnIfMissing(cn, "Products", "Description", "TEXT");
+        AddColumnIfMissing(cn, "Products", "MaxStock", "INTEGER NOT NULL DEFAULT 0");
+        AddColumnIfMissing(cn, "Products", "ReorderPoint", "INTEGER NOT NULL DEFAULT 0");
+        AddColumnIfMissing(cn, "Products", "MinSalePrice", "INTEGER NOT NULL DEFAULT 0");
+        AddColumnIfMissing(cn, "Products", "MaxSalePrice", "INTEGER NOT NULL DEFAULT 0");
         AddColumnIfMissing(cn, "CashTransactions", "CustomerId", "INTEGER");
         AddColumnIfMissing(cn, "CashTransactions", "SupplierId", "INTEGER");
         AddColumnIfMissing(cn, "CashTransactions", "PaymentMethod", "TEXT");
