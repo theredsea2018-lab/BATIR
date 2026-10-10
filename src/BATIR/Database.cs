@@ -33,7 +33,9 @@ CREATE TABLE IF NOT EXISTS Products(
  Code TEXT, Barcode TEXT, Name TEXT NOT NULL, Brand TEXT, Category TEXT,
  PurchasePrice INTEGER NOT NULL DEFAULT 0, SalePrice INTEGER NOT NULL DEFAULT 0,
  Stock INTEGER NOT NULL DEFAULT 0, MinStock INTEGER NOT NULL DEFAULT 0,
- Active INTEGER NOT NULL DEFAULT 1, CreatedAt TEXT NOT NULL, UnitName TEXT NOT NULL DEFAULT 'عدد', SecondaryUnitName TEXT, UnitConversionFactor INTEGER NOT NULL DEFAULT 1);
+ Active INTEGER NOT NULL DEFAULT 1, CreatedAt TEXT NOT NULL, UnitName TEXT NOT NULL DEFAULT 'عدد', SecondaryUnitName TEXT, UnitConversionFactor INTEGER NOT NULL DEFAULT 1,
+ TechnicalCode TEXT, Description TEXT, MaxStock INTEGER NOT NULL DEFAULT 0, ReorderPoint INTEGER NOT NULL DEFAULT 0,
+ MinSalePrice INTEGER NOT NULL DEFAULT 0, MaxSalePrice INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS Customers(
  Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL, Phone TEXT,
  Address TEXT, CreditLimit INTEGER NOT NULL DEFAULT 0,
@@ -105,7 +107,6 @@ CREATE TABLE IF NOT EXISTS Settings(
 CREATE INDEX IF NOT EXISTS IX_Products_Barcode ON Products(Barcode);
 CREATE INDEX IF NOT EXISTS IX_Products_Name ON Products(Name);
 CREATE INDEX IF NOT EXISTS IX_Products_Code ON Products(Code);
-CREATE INDEX IF NOT EXISTS IX_Products_TechnicalCode ON Products(TechnicalCode);
 CREATE INDEX IF NOT EXISTS IX_Invoices_InvoiceNo ON Invoices(InvoiceNo);
 CREATE INDEX IF NOT EXISTS IX_Invoices_DateText ON Invoices(DateText);
 CREATE INDEX IF NOT EXISTS IX_InvoiceItems_InvoiceId ON InvoiceItems(InvoiceId);
@@ -173,6 +174,7 @@ VALUES(@key,@value,@date);";
 
         using var indexes = cn.CreateCommand();
         indexes.CommandText = @"
+CREATE INDEX IF NOT EXISTS IX_Products_TechnicalCode ON Products(TechnicalCode);
 CREATE INDEX IF NOT EXISTS IX_CashTransactions_Type ON CashTransactions(Type);
 CREATE INDEX IF NOT EXISTS IX_CashTransactions_CustomerId ON CashTransactions(CustomerId);
 CREATE INDEX IF NOT EXISTS IX_CashTransactions_SupplierId ON CashTransactions(SupplierId);
