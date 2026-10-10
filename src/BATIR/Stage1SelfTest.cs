@@ -11,6 +11,7 @@ internal static class Stage1SelfTest
             TestDraftPersistence();
             TestPurchaseDraftPersistence();
             TestMigrationIdempotency();
+            TestProductCatalogFields();
             TestBackupAndRestore();
             TestLegacySchemaMigration();
             Console.WriteLine("BATIR Stage 1 test passed: isolated database, backup verification, restore, and legacy schema migration.");
@@ -94,6 +95,39 @@ VALUES(@product,@name,3,200,15);",
         Require(product.Rows.Count == 1, "repeated migration preserves existing product");
         Require(Convert.ToInt64(product.Rows[0]["Stock"]) == 5, "repeated migration preserves existing stock");
         Console.WriteLine("Stage 1 migration idempotency: passed (repeated migration preserves existing records and database integrity).");
+    }
+
+    private static void TestProductCatalogFields()
+    {
+        var columns = Database.Query("PRAGMA table_info(Products);");
+        var required = new[] { "TechnicalCode", "Description", "MaxStock", "ReorderPoint", "MinSalePrice", "MaxSalePrice" };
+        foreach (var requiredColumn in required)
+        {
+            var found = false;
+            foreach (System.Data.DataRow column in columns.Rows)
+            {
+                if (string.Equals(Convert.ToString(column["name"]), requiredColumn, StringComparison.OrdinalIgnoreCase))
+                {
+                    found = true;
+                    break;
+                }
+            }
+            Require(found, "product catalog migration adds " + requiredColumn);
+        }
+
+        Database.Execute(@"UPDATE Products SET TechnicalCode='STAGE1-TECH',Description='Catalog field round-trip probe',
+MaxStock=50,ReorderPoint=8,MinSalePrice=120,MaxSalePrice=240
+WHERE Id=(SELECT MAX(Id) FROM Products WHERE Code='STAGE1-DRAFT');");
+        var item = Database.Query(@"SELECT TechnicalCode,Description,MaxStock,ReorderPoint,MinSalePrice,MaxSalePrice
+FROM Products WHERE Id=(SELECT MAX(Id) FROM Products WHERE Code='STAGE1-DRAFT') LIMIT 1;");
+        Require(item.Rows.Count == 1, "product catalog probe record exists");
+        Require(Convert.ToString(item.Rows[0]["TechnicalCode"]) == "STAGE1-TECH", "technical code round-trip");
+        Require(Convert.ToString(item.Rows[0]["Description"]) == "Catalog field round-trip probe", "product description round-trip");
+        Require(Convert.ToInt64(item.Rows[0]["MaxStock"]) == 50, "maximum stock round-trip");
+        Require(Convert.ToInt64(item.Rows[0]["ReorderPoint"]) == 8, "reorder point round-trip");
+        Require(Convert.ToInt64(item.Rows[0]["MinSalePrice"]) == 120, "minimum sales price round-trip");
+        Require(Convert.ToInt64(item.Rows[0]["MaxSalePrice"]) == 240, "maximum sales price round-trip");
+        Console.WriteLine("Stage 1 product catalog migration: passed (technical details, stock limits, and sales-price limits).");
     }
 
     private static void TestBackupAndRestore()
